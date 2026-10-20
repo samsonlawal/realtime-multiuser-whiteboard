@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@theme {
+  /* ==========================================================================
+     REUSABLE THEME COLOR SYSTEM
+     Defining --color-<name> in Tailwind v4 automatically gives you:
+     bg-<name>, text-<name>, border-<name>, fill-<name>, etc.
+     ========================================================================== */
+
+  /* Surfaces & Backgrounds */
+  --color-canvas: #111111;
+  --color-panel: #141414;
+  --color-card: #181818;
+  --color-card-hover: #222222;
+
+  /* Borders & Dividers */
+  --color-subtle: #262626;
+  --color-subtle-hover: #383838;
+
+  /* Typography */
+  --color-heading: #f4f4f5;
+  --color-muted: #a1a1aa;
+  --color-dim: #71717a;
+
+  /* Primary Accent & Action */
+  --color-brand: #3b82f6;
+  --color-brand-hover: #2563eb;
+
+  /* Figma Peer Cursor Colors */
+  --color-peer-sarah: #a855f7;
+  --color-peer-alex: #10b981;
+  --color-peer-you: #3b82f6;
+
+
+
+  /* Fonts */
+  --font-poppins: "Poppins", sans-serif;
+  --font-display: "Red Hat Display", sans-serif;
+  --font-red-hat: "Red Hat Display", sans-serif;
+  --font-montserrat: "Montserrat", sans-serif;
+  --font-newsreader: "Newsreader", serif;
+  --font-shalimar: "Shalimar", cursive;
+  --font-syne: "Syne", sans-serif;
+  --font-roboto-slab: "Roboto Slab", serif;
+
+}
+
+/* Global resets */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-canvas);
+  color: var(--color-heading);
+  font-family: var(--font-poppins), 'Poppins', sans-serif;
+  overflow-x: hidden;
+}
+
+/* Reusable Canvas Grid Pattern */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
