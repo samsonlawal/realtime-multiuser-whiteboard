@@ -1,10 +1,10 @@
+import Logo from '../reusables/Logo';
+
 export default function Footer() {
   return (
     <footer className="mt-auto w-full border-t border-subtle bg-panel flex flex-col items-center">
       <div className="w-full py-14 sm:py-20 px-6 flex items-center justify-center select-none overflow-hidden">
-        <span className="text-6xl sm:text-8xl md:text-9xl lg:text-[10rem] font-bold tracking-tighter text-dim/25 hover:text-dim/40 transition-colors duration-300 font-display leading-none text-center">
-          Reeley
-        </span>
+        <Logo size="xl" className="text-dim/50" />
       </div>
 
       <div className="w-full border-t border-subtle">

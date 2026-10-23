@@ -30,7 +30,7 @@ export default function Button({
   ...props
 }) {
   const baseClasses =
-    'inline-flex items-center justify-center font-medium rounded-md border transition-colors cursor-pointer select-none disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand font-poppins duration-300 box-border';
+    'inline-flex items-center justify-center gap-1 font-medium rounded-md border transition-colors cursor-pointer select-none disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand font-poppins duration-300 box-border';
 
   const variantClasses = VARIANTS[variant] || VARIANTS.primary;
   const sizeClasses = SIZES[size] || SIZES.md;
