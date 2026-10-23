@@ -23,8 +23,8 @@
   --color-dim: #71717a;
 
   /* Primary Accent & Action */
-  --color-brand: #3b82f6;
-  --color-brand-hover: #2563eb;
+  --color-brand: #467D86;
+  --color-brand-hover: #396269;
 
   /* Figma Peer Cursor Colors */
   --color-peer-sarah: #a855f7;
@@ -55,15 +55,19 @@ body {
   overflow-x: hidden;
 }
 
-/* Reusable Canvas Grid Pattern */
-.bg-grid {
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 50px 50px;
-}
+/* Canvas grid is now computed dynamically in Canvas.jsx (zoom-aware) */
 
 #root {
   min-height: 100vh;
   width: 100%;
 }
+
+/* Hide scrollbar across Chrome, Safari, Firefox, Edge while keeping scrollable functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

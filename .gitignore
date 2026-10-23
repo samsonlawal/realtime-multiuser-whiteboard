@@ -36,5 +36,8 @@ dist-ssr
 
 # Personal & Internal Documentation
 notes/
+.notes
 FESD.md
 ARCHITECTURE.md
+
+MILESTONES.md
