@@ -24,6 +24,7 @@ export default function Canvas({
   activeTool = 'select',
   onSelectTool = () => {},
   nodes = [],
+  onUpdateNodePosition = () => {}
 }) {
   const containerRef = useRef(null);
   const bottomCanvasRef = useRef(null);
@@ -175,7 +176,7 @@ const handlePointerUp = (e) => {
         />
 
                 {nodes.map((node) => (
-          <CanvasNode key={node.id} node={node} />
+          <CanvasNode key={node.id} node={node} onMove={onUpdateNodePosition} scale={scale} />
         ))}
 
         
