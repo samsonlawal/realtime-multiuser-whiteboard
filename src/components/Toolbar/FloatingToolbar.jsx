@@ -85,6 +85,7 @@ export default function FloatingToolbar({
   return (
     <nav
       aria-label="Whiteboard Drawing Tools"
+      onPointerDown={(e) => e.stopPropagation()}
       className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-0.5 p-1.5 rounded-xl bg-panel/95 backdrop-blur-xl border border-subtle shadow-2xl select-none font-poppins"
     >
       {/* Tool buttons — icon only, tooltip on hover */}

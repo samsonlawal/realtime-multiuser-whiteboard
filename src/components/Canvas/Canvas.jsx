@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import FloatingToolbar from '../Toolbar/FloatingToolbar';
+import CanvasNode from './CanvasNode';
 
 const MIN_ZOOM = 30;
 const MAX_ZOOM = 300;
@@ -22,11 +23,17 @@ const cursorDict = {
 export default function Canvas({
   activeTool = 'select',
   onSelectTool = () => {},
+  nodes = [],
+  onUpdateNodePosition = () => {}
 }) {
   const containerRef = useRef(null);
   const bottomCanvasRef = useRef(null);
   const topCanvasRef = useRef(null);
   const [zoom, setZoom] = useState(100);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ startX: 0, startY: 0, initialPanX: 0, initialPanY: 0 });
+
 
   const clampZoom = (val) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, val));
 
@@ -63,6 +70,10 @@ export default function Canvas({
   const coarseOpacity = Math.max(0.03, Math.min(0.07, zoom / 1500 + 0.03));
 
   const gridStyle = {
+
+      backgroundPosition: `${pan.x}px ${pan.y}px`,
+
+
     backgroundImage: [
       // Fine sub-grid
       fineOpacity > 0
@@ -88,11 +99,51 @@ export default function Canvas({
       .join(', '),
   };
 
+  const handlePointerDown = (e) => {
+  // Only pan if Hand tool is active OR middle-mouse button is clicked
+  if (activeTool !== 'hand' && e.button !== 1) return;
+
+  // Locks mouse tracking to this element even if cursor leaves the window
+  e.currentTarget.setPointerCapture(e.pointerId);
+
+  panStartRef.current = {
+    startX: e.clientX,
+    startY: e.clientY,
+    initialPanX: pan.x,
+    initialPanY: pan.y,
+  };
+  setIsPanning(true);
+};
+
+const handlePointerMove = (e) => {
+  if (!isPanning) return;
+  const deltaX = e.clientX - panStartRef.current.startX;
+  const deltaY = e.clientY - panStartRef.current.startY;
+
+  setPan({
+    x: panStartRef.current.initialPanX + deltaX,
+    y: panStartRef.current.initialPanY + deltaY,
+  });
+};
+
+const handlePointerUp = (e) => {
+  if (!isPanning) return;
+  setIsPanning(false);
+  try {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  } catch {}
+};
+
+
   return (
     <main
       ref={containerRef}
-      className="flex-1 relative h-full bg-canvas overflow-hidden select-none"
-      style={gridStyle}
+  onPointerDown={handlePointerDown}
+  onPointerMove={handlePointerMove}
+  onPointerUp={handlePointerUp}
+  className={`flex-1 relative h-full bg-canvas overflow-hidden select-none ${
+    activeTool === 'hand' ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : ''
+  }`}      style={gridStyle}
     >
       {/*
         Canvas layers are inside a scale wrapper.
@@ -104,8 +155,8 @@ export default function Canvas({
         style={{
           position: 'absolute',
           inset: 0,
-          transform: `scale(${scale})`,
-          transformOrigin: 'center center',
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+          transformOrigin: '0 0',
         }}
       >
         {/* Layer 1: Bottom canvas (committed shapes) */}
@@ -114,17 +165,26 @@ export default function Canvas({
           className="absolute inset-0 block w-full h-full pointer-events-none"
         />
 
-        {/* Layer 2: Top canvas (active draw + remote cursors) */}
+
+
+        {/* Layer 3: Top canvas (active draw + remote cursors) */}
         <canvas
           ref={topCanvasRef}
           className={`absolute inset-0 block w-full h-full ${
-            cursorDict[activeTool] || 'cursor-crosshair'
-          }`}
+            cursorDict[activeTool] || 'cursor-crosshair'}  ${activeTool === 'select' ? 'pointer-events-none' : ''}
+          `}
         />
+
+                {nodes.map((node) => (
+          <CanvasNode key={node.id} node={node} onMove={onUpdateNodePosition} scale={scale} />
+        ))}
+
+        
       </div>
 
       {/* Center welcome guide */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      {nodes.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="p-5 rounded-2xl bg-panel/80 border border-subtle backdrop-blur-md text-center max-w-sm shadow-2xl">
           <div className="w-10 h-10 mx-auto mb-2.5 rounded-full bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -141,6 +201,7 @@ export default function Canvas({
           </p>
         </div>
       </div>
+      )}
 
       {/* Floating toolbar */}
       <FloatingToolbar
@@ -150,6 +211,7 @@ export default function Canvas({
         onZoomIn={handleZoomIn}
         onZoomOut={handleZoomOut}
         onResetZoom={handleResetZoom}
+        
       />
     </main>
   );
