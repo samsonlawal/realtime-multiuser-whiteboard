@@ -143,6 +143,7 @@ export default function ComponentPickerModal({ onSelect, onClose }) {
                       onClick={() => {
                         onSelect(item);
                         onClose();
+                        console.log(item);
                       }}
                       className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-card-hover text-left cursor-pointer transition-colors group"
                     >

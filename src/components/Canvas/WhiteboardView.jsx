@@ -22,10 +22,21 @@ export default function WhiteboardView({ onBackToHome }) {
   const [strokeStyle, setStrokeStyle] = useState('solid');
   const [fill, setFill] = useState('transparent');
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
+  const [nodes, setNodes] = useState([]);
 
   const handleSelectPrimitive = (primitive) => {
-    // In Milestone 2/3, this will drop the shape onto the canvas center.
-    console.log('Selected system primitive:', primitive.label);
+    const newNode = {
+      id: crypto.randomUUID(),
+      primitiveId: primitive.id,
+      label: primitive.label,
+      icon: primitive.icon,
+      category: primitive.category,
+      x: 300 + (nodes.length * 20),
+      y: 180 + (nodes.length * 20),
+    };
+
+    setNodes((prev) => [...prev, newNode]);
+    console.log(primitive)
   };
 
   const handleUndo = () => {
@@ -47,6 +58,15 @@ export default function WhiteboardView({ onBackToHome }) {
 
 
 function filterAndGroupComponents(items, query) {
+
+}
+
+function handleUpdateNodePosition(id, newX, newY) {
+
+  setNodes((prevNodes) => 
+    // How do you check if n.id === id, and update its x and y?
+  prevNodes.map((prevNode) => (
+    prevNode.id === id ? {...prevNode, x: newX, y: newY  } : prevNode)))
 
 }
 
@@ -78,6 +98,8 @@ function filterAndGroupComponents(items, query) {
         <Canvas
           activeTool={activeTool}
           onSelectTool={setActiveTool}
+          nodes={nodes}
+         onUpdateNodePosition={handleUpdateNodePosition}
         />
 
         {/* Right Docked Sidebar (Properties & Styling) */}

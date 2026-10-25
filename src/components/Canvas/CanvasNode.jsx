@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import ComponentIcon from '../reusables/ComponentIcon';
 
 /**
@@ -24,17 +25,69 @@ export default function CanvasNode({
   isSelected = false,
   onSelect = () => {},
   onPortClick = () => {},
+  onMove = () => {},
+  scale = 1,
 }) {
   const width = node.width || 180;
   const height = node.height || 56;
+
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStartRef = useRef({startX: 0, startY: 0, initialNodeX: 0, initialNodeY: 0})
+
+
+  const handlePointerDown = (e) => {
+    e.stopPropagation();
+    onSelect(node.id)
+
+      // 3. Lock mouse to this card so fast moves don't drop it
+  e.currentTarget.setPointerCapture(e.pointerId);
+  // 4. Take the snapshot!
+  dragStartRef.current = {
+    startX: e.clientX,
+    startY: e.clientY,
+    initialNodeX: node.x,
+    initialNodeY: node.y,
+  };
+  // 5. Flip the switch!
+  setIsDragging(true);
+  }
+
+
+  const handlePointerMove = (e) => {
+    if (!isDragging) return;
+
+  const deltaX = (e.clientX - dragStartRef.current.startX) / scale;
+  const deltaY = (e.clientY - dragStartRef.current.startY) / scale;
+
+  const nextX = Math.round(dragStartRef.current.initialNodeX + deltaX);
+  const nextY = Math.round(dragStartRef.current.initialNodeY + deltaY);
+
+  onMove(node.id, nextX, nextY);
+  }
+
+
+  const handlePointerUp = (e) => {
+  if (!isDragging) return;
+  setIsDragging(false);
+  try {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  } catch {}
+};
+
+
 
   return (
     <div
       onClick={(e) => {
         e.stopPropagation();
         onSelect(node.id);
+        
       }}
-      className={`absolute group select-none cursor-move rounded-xl border transition-all duration-150 shadow-md ${
+      onPointerDown={handlePointerDown}
+      onPointerMove = {handlePointerMove}
+      onPointerUp={handlePointerUp}
+
+      className={`absolute group select-none cursor-move rounded-xl border transition-border duration-150 shadow-md ${
         isSelected
           ? 'bg-panel border-brand shadow-brand/20 ring-1 ring-brand'
           : 'bg-panel/95 border-subtle hover:border-brand/50 hover:shadow-lg'
