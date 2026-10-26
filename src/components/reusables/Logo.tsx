@@ -12,7 +12,14 @@
  * - onClick: optional click handler
  */
 
-const SIZES = {
+
+interface LogoProps {
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  className?: string;
+  onClick?: () => {};
+}
+
+const SIZES: Record<'sm' | 'md' | 'lg' | 'xl', string> = {
   sm: 'text-base',
   md: 'text-xl',
   lg: 'text-4xl',
@@ -24,7 +31,7 @@ export default function Logo({
   className = '',
   onClick,
   ...props
-}) {
+}: LogoProps) {
   const sizeClasses = SIZES[size] || SIZES.md;
   const isClickable = Boolean(onClick);
 

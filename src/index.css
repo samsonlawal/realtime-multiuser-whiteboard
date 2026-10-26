@@ -23,8 +23,12 @@
   --color-dim: #71717a;
 
   /* Primary Accent & Action */
-  --color-brand: #467D86;
-  --color-brand-hover: #396269;
+  --color-brand: #3b82f6;
+  --color-brand-hover: #2563eb;
+
+  /* Bezier Accent */
+  --color-bezier: #467D86;
+  --color-bezier-hover: #396269;
 
   /* Figma Peer Cursor Colors */
   --color-peer-sarah: #a855f7;

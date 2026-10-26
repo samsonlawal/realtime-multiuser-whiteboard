@@ -1,5 +1,16 @@
 import { useRef, useState } from 'react';
-import ComponentIcon from '../reusables/ComponentIcon';
+import ComponentIcon from '../reusables/ComponentIcon'
+
+import type { NodeEntity, PortDirection } from '../../types/whiteboard';
+
+interface CanvasNodeProps {
+  node: NodeEntity;
+  isSelected?: boolean;
+  onSelect?: (nodeId: string) => void;
+  onPortClick?: (nodeId: string, portDirection: PortDirection) => void;
+  onMove?: (id: string, newX: number, newY: number) => void; // <-- 3 arguments!
+  scale?: number;
+}
 
 /**
  * CanvasNode:
@@ -27,7 +38,7 @@ export default function CanvasNode({
   onPortClick = () => {},
   onMove = () => {},
   scale = 1,
-}) {
+}: CanvasNodeProps) {
   const width = node.width || 180;
   const height = node.height || 56;
 
@@ -35,7 +46,7 @@ export default function CanvasNode({
   const dragStartRef = useRef({startX: 0, startY: 0, initialNodeX: 0, initialNodeY: 0})
 
 
-  const handlePointerDown = (e) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
     onSelect(node.id)
 
@@ -53,7 +64,7 @@ export default function CanvasNode({
   }
 
 
-  const handlePointerMove = (e) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDragging) return;
 
   const deltaX = (e.clientX - dragStartRef.current.startX) / scale;
@@ -66,7 +77,7 @@ export default function CanvasNode({
   }
 
 
-  const handlePointerUp = (e) => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
   if (!isDragging) return;
   setIsDragging(false);
   try {
@@ -121,6 +132,7 @@ export default function CanvasNode({
       {/* Top (North) */}
       <button
         type="button"
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation();
           onPortClick(node.id, 'top');
@@ -132,6 +144,7 @@ export default function CanvasNode({
       {/* Right (East) */}
       <button
         type="button"
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation();
           onPortClick(node.id, 'right');
@@ -143,6 +156,7 @@ export default function CanvasNode({
       {/* Bottom (South) */}
       <button
         type="button"
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation();
           onPortClick(node.id, 'bottom');
@@ -154,6 +168,7 @@ export default function CanvasNode({
       {/* Left (West) */}
       <button
         type="button"
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation();
           onPortClick(node.id, 'left');

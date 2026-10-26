@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import type { ToolType } from '../../types/whiteboard';
 
-const TOOLS = [
+const TOOLS: ToolItem[] = [
   { id: 'select',    label: 'Select',    shortcut: 'V', icon: 'cursor' },
   { id: 'hand',      label: 'Pan',       shortcut: 'H', icon: 'hand' },
   { id: 'rectangle', label: 'Rectangle', shortcut: 'R', icon: 'rect' },
@@ -10,12 +11,12 @@ const TOOLS = [
   { id: 'text',      label: 'Text',      shortcut: 'T', icon: 'text' },
 ];
 
-function ToolIcon({ type }) {
+function ToolIcon({ type }: {type: string}) {
   const p = {
     xmlns: 'http://www.w3.org/2000/svg', width: 16, height: 16,
     viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
     strokeWidth: '1.8', strokeLinecap: 'round', strokeLinejoin: 'round',
-  };
+  } as const;
   switch (type) {
     case 'cursor':
       return <svg {...p}><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z" /><path d="m13 13 6 6" /></svg>;
@@ -36,7 +37,20 @@ function ToolIcon({ type }) {
   }
 }
 
-function ToolButton({ tool, isActive, onClick }) {
+interface ToolItem {
+  id: ToolType;
+  label: string;
+  shortcut: string;
+  icon: string;
+}
+
+interface ToolButtonProps {
+  tool: ToolItem;
+  isActive: boolean;
+  onClick: () => void;
+}
+
+function ToolButton({ tool, isActive, onClick }: ToolButtonProps) {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -74,6 +88,17 @@ function ToolButton({ tool, isActive, onClick }) {
 /* ─────────────────────────────────────────────────────────────
    FloatingToolbar
 ───────────────────────────────────────────────────────────── */
+
+
+interface FloatingToolbarProps {
+  activeTool?: ToolType;
+  onSelectTool?: (tool: ToolType) => void;
+  zoom?: number;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onResetZoom?: () => void;
+}
+
 export default function FloatingToolbar({
   activeTool = 'select',
   onSelectTool = () => {},
@@ -81,7 +106,8 @@ export default function FloatingToolbar({
   onZoomIn = () => {},
   onZoomOut = () => {},
   onResetZoom = () => {},
-}) {
+}: FloatingToolbarProps) {
+
   return (
     <nav
       aria-label="Whiteboard Drawing Tools"

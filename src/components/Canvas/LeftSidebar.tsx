@@ -2,6 +2,8 @@ import { useState } from 'react';
 import Logo from '../reusables/Logo';
 import SectionHeader from './Sidebar/SectionHeader';
 import ComponentPickerModal from './Sidebar/ComponentPickerModal';
+import type { ComponentPrimitive, ConnectionEntity } from '../../types/whiteboard';
+
 
 /* ─────────────────────────────────────────────────────────────
    Mock / Placeholder Data
@@ -39,7 +41,23 @@ const SAVED_ARCHITECTURES = [
      - onToggle: function — toggles this card's open state
      - onLoad: function — loads this architecture onto the canvas
 ───────────────────────────────────────────────────────────── */
-function ArchItem({ arch, isOpen, onToggle, onLoad }) {
+
+interface SavedArch {
+  id: string;
+  name: string;
+  description: string;
+  updatedAt: string;
+}
+
+interface ArchItemProps {
+  arch: SavedArch;
+  isOpen: boolean;
+  onToggle: () => void;
+  onLoad: (arch: SavedArch) => void;
+}
+
+
+function ArchItem({ arch, isOpen, onToggle, onLoad }: ArchItemProps) {
   return (
     <div className="border border-subtle rounded-lg overflow-hidden">
       {/* Clickable Header */}
@@ -89,6 +107,11 @@ function ArchItem({ arch, isOpen, onToggle, onLoad }) {
   );
 }
 
+interface LeftSidebarProps {
+  onSelectPrimitive?: (primitive: ComponentPrimitive) => void;
+  connections?: ConnectionEntity[];
+}
+
 /* ─────────────────────────────────────────────────────────────
    LeftSidebar Main Component
    Layout (vertical stack, fixed 240px width `w-60`):
@@ -98,7 +121,7 @@ function ArchItem({ arch, isOpen, onToggle, onLoad }) {
         - "Saved Architectures": Persisted board snapshots
      3. Bottom Footer: Subtle ghosted "Reeley" wordmark
 ───────────────────────────────────────────────────────────── */
-export default function LeftSidebar({ onSelectPrimitive = () => {}, connections = [] }) {
+export default function LeftSidebar({ onSelectPrimitive = () => {}, connections = [] } : LeftSidebarProps) {
   // Modal visibility state
   const [showPicker, setShowPicker] = useState(false);
 
@@ -107,13 +130,13 @@ export default function LeftSidebar({ onSelectPrimitive = () => {}, connections 
   const [savedOpen, setSavedOpen] = useState(true);
 
   // ID of currently expanded saved architecture item (null if none are open)
-  const [openArchId, setOpenArchId] = useState(null);
+  const [openArchId, setOpenArchId] = useState<string | null>(null);
 
   // Toggles single accordion item open/shut
-  const toggleArch = (id) => setOpenArchId((prev) => (prev === id ? null : id));
+  const toggleArch = (id: string) => setOpenArchId((prev) => (prev === id ? null : id));
 
   // Placeholder handler for loading an architecture snapshot onto the board
-  const handleLoad = (arch) => console.log('Load architecture:', arch.name);
+  const handleLoad = (arch: SavedArch) => console.log('Load architecture:', arch.name);
 
   return (
     <>
@@ -170,11 +193,11 @@ export default function LeftSidebar({ onSelectPrimitive = () => {}, connections 
                   <div className="space-y-1 mt-1">
                     {connections.map((conn, i) => (
                       <div key={i} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-card border border-subtle text-xs">
-                        <span className="text-heading font-medium truncate">{conn.from}</span>
+                        <span className="text-heading font-medium truncate">{conn.fromNodeId}</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-dim shrink-0">
                           <path d="M5 12h14m-7-7 7 7-7 7" />
                         </svg>
-                        <span className="text-heading font-medium truncate">{conn.to}</span>
+                        <span className="text-heading font-medium truncate">{conn.toNodeId}</span>
                       </div>
                     ))}
                   </div>

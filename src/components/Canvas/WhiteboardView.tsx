@@ -3,6 +3,7 @@ import CanvasHeader from './CanvasHeader';
 import LeftSidebar from './LeftSidebar';
 import Canvas from './Canvas';
 import PropertiesPanel from '../UserPresence/PropertiesPanel';
+import type { NodeEntity, ConnectionEntity, PortDirection, ComponentPrimitive, ToolType  } from '../../types/whiteboard';
 
 /**
  * WhiteboardView:
@@ -15,16 +16,23 @@ import PropertiesPanel from '../UserPresence/PropertiesPanel';
  *     - Right Docked Sidebar (PropertiesPanel: stroke styling, colors, fill)
  */
 
-export default function WhiteboardView({ onBackToHome }) {
-  const [activeTool, setActiveTool] = useState('select');
+interface WhiteboardViewProps {
+  onBackToHome?: () => void;
+}
+
+
+export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
+  const [activeTool, setActiveTool] = useState<ToolType>('select');
   const [selectedColor, setSelectedColor] = useState('#f4f4f5');
   const [strokeWidth, setStrokeWidth] = useState(2);
   const [strokeStyle, setStrokeStyle] = useState('solid');
   const [fill, setFill] = useState('transparent');
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
-  const [nodes, setNodes] = useState([]);
+  const [nodes, setNodes] = useState<NodeEntity[]>([]);
+  const [connections, setConnections] = useState<ConnectionEntity[]>([]);
 
-  const handleSelectPrimitive = (primitive) => {
+
+  const handleSelectPrimitive = (primitive: ComponentPrimitive) => {
     const newNode = {
       id: crypto.randomUUID(),
       primitiveId: primitive.id,
@@ -57,11 +65,11 @@ export default function WhiteboardView({ onBackToHome }) {
   };
 
 
-function filterAndGroupComponents(items, query) {
+function filterAndGroupComponents(items: ComponentPrimitive[], query: string) {
 
 }
 
-function handleUpdateNodePosition(id, newX, newY) {
+function handleUpdateNodePosition(id: string, newX: number, newY: number) {
 
   setNodes((prevNodes) => 
     // How do you check if n.id === id, and update its x and y?
@@ -69,6 +77,23 @@ function handleUpdateNodePosition(id, newX, newY) {
     prevNode.id === id ? {...prevNode, x: newX, y: newY  } : prevNode)))
 
 }
+
+  // Creates a permanent connection between two card ports
+  const handleConnect = (
+    fromNodeId: string,
+    fromPort: PortDirection,
+    toNodeId: string,
+    toPort: PortDirection
+  ) => {
+    const newConnection: ConnectionEntity = {
+      id: crypto.randomUUID(),
+      fromNodeId,
+      fromPort,
+      toNodeId,
+      toPort,
+    };
+    setConnections((prev) => [...prev, newConnection]);
+  };
 
 
 
@@ -91,7 +116,7 @@ function handleUpdateNodePosition(id, newX, newY) {
       <div className="flex-1 flex flex-row overflow-hidden relative">
         {/* Left Docked Sidebar (Primitives & Connections) - toggled via CanvasHeader */}
         {isLeftSidebarOpen && (
-          <LeftSidebar onSelectPrimitive={handleSelectPrimitive} />
+          <LeftSidebar onSelectPrimitive={handleSelectPrimitive} connections={connections} />
         )}
 
         {/* Center Workspace (Canvas + Floating Island Toolbar) */}
@@ -100,6 +125,8 @@ function handleUpdateNodePosition(id, newX, newY) {
           onSelectTool={setActiveTool}
           nodes={nodes}
          onUpdateNodePosition={handleUpdateNodePosition}
+         connections={connections}
+          onConnect={handleConnect}
         />
 
         {/* Right Docked Sidebar (Properties & Styling) */}
