@@ -2,6 +2,8 @@ import { useState } from 'react';
 import Logo from '../reusables/Logo';
 import SectionHeader from './Sidebar/SectionHeader';
 import ComponentPickerModal from './Sidebar/ComponentPickerModal';
+import type { ComponentPrimitive, ConnectionEntity, NodeEntity } from '../../types/whiteboard';
+
 
 /* ─────────────────────────────────────────────────────────────
    Mock / Placeholder Data
@@ -39,7 +41,23 @@ const SAVED_ARCHITECTURES = [
      - onToggle: function — toggles this card's open state
      - onLoad: function — loads this architecture onto the canvas
 ───────────────────────────────────────────────────────────── */
-function ArchItem({ arch, isOpen, onToggle, onLoad }) {
+
+interface SavedArch {
+  id: string;
+  name: string;
+  description: string;
+  updatedAt: string;
+}
+
+interface ArchItemProps {
+  arch: SavedArch;
+  isOpen: boolean;
+  onToggle: () => void;
+  onLoad: (arch: SavedArch) => void;
+}
+
+
+function ArchItem({ arch, isOpen, onToggle, onLoad }: ArchItemProps) {
   return (
     <div className="border border-subtle rounded-lg overflow-hidden">
       {/* Clickable Header */}
@@ -89,6 +107,13 @@ function ArchItem({ arch, isOpen, onToggle, onLoad }) {
   );
 }
 
+interface LeftSidebarProps {
+  onSelectPrimitive?: (primitives: ComponentPrimitive[]) => void;
+  connections?: ConnectionEntity[];
+  nodes: NodeEntity[];
+  onDeleteConnection: (edgeId: string) => void;
+}
+
 /* ─────────────────────────────────────────────────────────────
    LeftSidebar Main Component
    Layout (vertical stack, fixed 240px width `w-60`):
@@ -98,7 +123,8 @@ function ArchItem({ arch, isOpen, onToggle, onLoad }) {
         - "Saved Architectures": Persisted board snapshots
      3. Bottom Footer: Subtle ghosted "Reeley" wordmark
 ───────────────────────────────────────────────────────────── */
-export default function LeftSidebar({ onSelectPrimitive = () => {}, connections = [] }) {
+export default function LeftSidebar({ onSelectPrimitive = () => {}, connections = [], nodes = [], onDeleteConnection = () => {} } : LeftSidebarProps) {
+  
   // Modal visibility state
   const [showPicker, setShowPicker] = useState(false);
 
@@ -107,13 +133,13 @@ export default function LeftSidebar({ onSelectPrimitive = () => {}, connections 
   const [savedOpen, setSavedOpen] = useState(true);
 
   // ID of currently expanded saved architecture item (null if none are open)
-  const [openArchId, setOpenArchId] = useState(null);
+  const [openArchId, setOpenArchId] = useState<string | null>(null);
 
   // Toggles single accordion item open/shut
-  const toggleArch = (id) => setOpenArchId((prev) => (prev === id ? null : id));
+  const toggleArch = (id: string) => setOpenArchId((prev) => (prev === id ? null : id));
 
   // Placeholder handler for loading an architecture snapshot onto the board
-  const handleLoad = (arch) => console.log('Load architecture:', arch.name);
+  const handleLoad = (arch: SavedArch) => console.log('Load architecture:', arch.name);
 
   return (
     <>
@@ -149,6 +175,7 @@ export default function LeftSidebar({ onSelectPrimitive = () => {}, connections 
             {connectionsOpen && (
               <div className="overflow-y-auto flex-1 px-3 pb-3 pt-1">
                 {connections.length === 0 ? (
+                  
                   /* Empty state: shown when no arrows exist on canvas yet */
                   <div className="mt-1 px-3 py-4 rounded-xl border border-dashed border-subtle flex flex-col items-center gap-2 text-center">
                     <div className="w-7 h-7 rounded-full bg-card border border-subtle flex items-center justify-center text-dim">
@@ -168,15 +195,34 @@ export default function LeftSidebar({ onSelectPrimitive = () => {}, connections 
                 ) : (
                   /* Populated list: one row per arrow (Source -> Target) */
                   <div className="space-y-1 mt-1">
-                    {connections.map((conn, i) => (
-                      <div key={i} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-card border border-subtle text-xs">
-                        <span className="text-heading font-medium truncate">{conn.from}</span>
+                    {connections.map((conn, i) => { 
+
+                      const fromNode = nodes.find(n => n.id === conn.fromNodeId);
+                      const toNode   = nodes.find(n => n.id === conn.toNodeId);
+                      
+                      return (
+                        <div
+                          key={conn.id || i}
+                          className="group flex items-center gap-2 px-2.5 py-2 rounded-lg bg-card hover:bg-card-hover border border-subtle text-xs transition-colors"
+                        >  
+                        <span className="text-heading font-medium truncate">{fromNode?.label || 'Unknown'}</span>
+
                         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-dim shrink-0">
                           <path d="M5 12h14m-7-7 7 7-7 7" />
                         </svg>
-                        <span className="text-heading font-medium truncate">{conn.to}</span>
+
+                        <span className="text-heading font-medium truncate">{toNode?.label || 'Unknown'}</span>
+                        <button onClick={() => onDeleteConnection(conn.id)} 
+                          className="ml-auto opacity-0 group-hover:opacity-100 p-1 text-dim hover:text-red-700 hover:bg-red-400/10 rounded transition-all shrink-0 cursor-pointer"
+    title="Delete connection"
+                          
+                          >
+                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                        </button>
                       </div>
-                    ))}
+                    )})}
                   </div>
                 )}
               </div>

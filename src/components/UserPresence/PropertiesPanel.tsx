@@ -19,6 +19,17 @@ const STROKE_STYLES = [
   { id: 'dotted', label: 'Dotted' },
 ];
 
+interface PropertiesPanelProps {
+  selectedColor?: string;
+  onSelectColor?: (color: string) => void;
+  strokeWidth?: number;
+  onSelectStrokeWidth?: (width: number) => void;
+  strokeStyle?: string;
+  onSelectStrokeStyle?: (style: string) => void;
+  fill?: string;
+  onSelectFill?: (fill: string) => void;
+}
+
 export default function PropertiesPanel({
   selectedColor = '#f4f4f5',
   onSelectColor = () => {},
@@ -28,7 +39,7 @@ export default function PropertiesPanel({
   onSelectStrokeStyle = () => {},
   fill = 'transparent',
   onSelectFill = () => {},
-}) {
+}: PropertiesPanelProps) {
   return (
     <aside className="w-64 border-l border-subtle bg-panel flex flex-col shrink-0 select-none z-20 font-poppins">
       {/* Header */}
