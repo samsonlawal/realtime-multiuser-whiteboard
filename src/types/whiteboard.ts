@@ -22,6 +22,7 @@ export interface ComponentPrimitive {
   label: string;     // e.g. 'PostgreSQL'
   category: string;  // e.g. 'Databases'
   icon?: string;
+  color?: string;    // Official brand accent color (e.g. '#336791')
 }
 
 // ── Architecture Node (Cards on the Canvas) ──
@@ -31,6 +32,7 @@ export interface NodeEntity {
   label: string;
   category: string;
   icon?: string;
+  color?: string;    // Brand accent color inherited from primitive or customized
   x: number;
   y: number;
   width?: number;   // default 180
@@ -45,7 +47,9 @@ export interface ConnectionEntity {
   toNodeId: string;
   toPort: PortDirection;
   color?: string;
-  style?: 'solid' | 'dashed';
+  style?: 'solid' | 'dashed' | 'dotted';
+  direction?: 'unidirectional' | 'bidirectional';
+  label?: string;
 }
 
 // ── In-Progress Draft Wire (While mouse is dragging across the screen) ──

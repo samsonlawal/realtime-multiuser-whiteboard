@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Logo from '../reusables/Logo';
 import SectionHeader from './Sidebar/SectionHeader';
 import ComponentPickerModal from './Sidebar/ComponentPickerModal';
-import type { ComponentPrimitive, ConnectionEntity } from '../../types/whiteboard';
+import type { ComponentPrimitive, ConnectionEntity, NodeEntity } from '../../types/whiteboard';
 
 
 /* ─────────────────────────────────────────────────────────────
@@ -108,8 +108,10 @@ function ArchItem({ arch, isOpen, onToggle, onLoad }: ArchItemProps) {
 }
 
 interface LeftSidebarProps {
-  onSelectPrimitive?: (primitive: ComponentPrimitive) => void;
+  onSelectPrimitive?: (primitives: ComponentPrimitive[]) => void;
   connections?: ConnectionEntity[];
+  nodes: NodeEntity[];
+  onDeleteConnection: (edgeId: string) => void;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -121,7 +123,8 @@ interface LeftSidebarProps {
         - "Saved Architectures": Persisted board snapshots
      3. Bottom Footer: Subtle ghosted "Reeley" wordmark
 ───────────────────────────────────────────────────────────── */
-export default function LeftSidebar({ onSelectPrimitive = () => {}, connections = [] } : LeftSidebarProps) {
+export default function LeftSidebar({ onSelectPrimitive = () => {}, connections = [], nodes = [], onDeleteConnection = () => {} } : LeftSidebarProps) {
+  
   // Modal visibility state
   const [showPicker, setShowPicker] = useState(false);
 
@@ -172,6 +175,7 @@ export default function LeftSidebar({ onSelectPrimitive = () => {}, connections 
             {connectionsOpen && (
               <div className="overflow-y-auto flex-1 px-3 pb-3 pt-1">
                 {connections.length === 0 ? (
+                  
                   /* Empty state: shown when no arrows exist on canvas yet */
                   <div className="mt-1 px-3 py-4 rounded-xl border border-dashed border-subtle flex flex-col items-center gap-2 text-center">
                     <div className="w-7 h-7 rounded-full bg-card border border-subtle flex items-center justify-center text-dim">
@@ -191,15 +195,34 @@ export default function LeftSidebar({ onSelectPrimitive = () => {}, connections 
                 ) : (
                   /* Populated list: one row per arrow (Source -> Target) */
                   <div className="space-y-1 mt-1">
-                    {connections.map((conn, i) => (
-                      <div key={i} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-card border border-subtle text-xs">
-                        <span className="text-heading font-medium truncate">{conn.fromNodeId}</span>
+                    {connections.map((conn, i) => { 
+
+                      const fromNode = nodes.find(n => n.id === conn.fromNodeId);
+                      const toNode   = nodes.find(n => n.id === conn.toNodeId);
+                      
+                      return (
+                        <div
+                          key={conn.id || i}
+                          className="group flex items-center gap-2 px-2.5 py-2 rounded-lg bg-card hover:bg-card-hover border border-subtle text-xs transition-colors"
+                        >  
+                        <span className="text-heading font-medium truncate">{fromNode?.label || 'Unknown'}</span>
+
                         <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-dim shrink-0">
                           <path d="M5 12h14m-7-7 7 7-7 7" />
                         </svg>
-                        <span className="text-heading font-medium truncate">{conn.toNodeId}</span>
+
+                        <span className="text-heading font-medium truncate">{toNode?.label || 'Unknown'}</span>
+                        <button onClick={() => onDeleteConnection(conn.id)} 
+                          className="ml-auto opacity-0 group-hover:opacity-100 p-1 text-dim hover:text-red-700 hover:bg-red-400/10 rounded transition-all shrink-0 cursor-pointer"
+    title="Delete connection"
+                          
+                          >
+                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                        </button>
                       </div>
-                    ))}
+                    )})}
                   </div>
                 )}
               </div>

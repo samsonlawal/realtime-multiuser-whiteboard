@@ -31,6 +31,10 @@ interface CanvasProps {
   onUpdateNodePosition: (id: string, newX: number, newY: number) => void;
   connections?: ConnectionEntity[];
   onConnect?: (fromId: string, fromPort: PortDirection, toId: string, toPort: PortDirection) => void;
+  selectedNodeId?: string | null;
+  onSelectNode?: (nodeId: string) => void;
+  onDeleteNode?: (nodeId: string) => void;
+  onDuplicateNode?: (nodeId: string) => void;
 }
 
 export default function Canvas({
@@ -39,7 +43,11 @@ export default function Canvas({
   nodes = [],
   connections = [],
   onUpdateNodePosition = () => {},
-  onConnect = () => {}
+  onConnect = () => {},
+  selectedNodeId = null,
+  onSelectNode = () => {},
+  onDeleteNode = () => {},
+  onDuplicateNode = () => {},
 }: CanvasProps) {
 
 
@@ -81,11 +89,23 @@ const [draftWire, setDraftWire] = useState<DraftConnection | null>(null);
       setZoom((z) => clampZoom(z + delta));
     };
     el.addEventListener('wheel', handler, { passive: false });
-    return () => el.removeEventListener('wheel', handler);
-
-
-    
+    return () => el.removeEventListener('wheel', handler);    
   }, []);
+
+
+  useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && draftWire) {
+      setDraftWire(null);
+      // Clear top canvas
+      const topCanvas = topCanvasRef.current;
+      topCanvas?.getContext('2d')?.clearRect(0, 0, topCanvas.width, topCanvas.height);
+    }
+  };
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [draftWire]);
+
 
   const scale = zoom / 100;
 
@@ -251,12 +271,18 @@ const handlePortClick = (nodeId: string, port: PortDirection) => {
   return (
     <main
       ref={containerRef}
-  onPointerDown={handlePointerDown}
-  onPointerMove={handlePointerMove}
-  onPointerUp={handlePointerUp}
-  className={`flex-1 relative h-full bg-canvas overflow-hidden select-none ${
-    activeTool === 'hand' ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : ''
-  }`}      style={gridStyle}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onClick={(e) => {
+        if (e.target === containerRef.current || (e.target as HTMLElement).tagName === 'CANVAS') {
+          onSelectNode?.('');
+        }
+      }}
+      className={`flex-1 relative h-full bg-canvas overflow-hidden select-none ${
+        activeTool === 'hand' ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : ''
+      }`}
+      style={gridStyle}
     >
       {/*
         Canvas layers are inside a scale wrapper.
@@ -288,8 +314,18 @@ const handlePortClick = (nodeId: string, port: PortDirection) => {
           `}
         />
 
-                {nodes.map((node) => (
-          <CanvasNode key={node.id} node={node} onMove={onUpdateNodePosition} scale={scale} onPortClick={handlePortClick} />
+        {nodes.map((node) => (
+          <CanvasNode
+            key={node.id}
+            node={node}
+            onMove={onUpdateNodePosition}
+            scale={scale}
+            onPortClick={handlePortClick}
+            selectedNodeId={selectedNodeId}
+            onSelectNode={onSelectNode}
+            onDeleteNode={onDeleteNode}
+            onDuplicateNode={onDuplicateNode}
+          />
         ))}
 
         

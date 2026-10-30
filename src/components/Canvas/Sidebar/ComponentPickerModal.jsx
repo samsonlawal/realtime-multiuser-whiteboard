@@ -22,6 +22,34 @@ export default function ComponentPickerModal({ onSelect, onClose }) {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const inputRef = useRef(null);
 
+  // quantities dictionary: { [primitiveId: string]: number }
+  const [quantities, setQuantities] = useState({});
+
+  const getCount = (id) => quantities[id] || 0;
+
+  const handleIncrement = (id) => {
+    setQuantities((prev) => ({
+      ...prev,
+      [id]: (prev[id] || 0) + 1,
+    }));
+  };
+
+  const handleDecrement = (id) => {
+    setQuantities((prev) => {
+      const current = prev[id] || 0;
+      if (current <= 1) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: current - 1 };
+    });
+  };
+
+  const totalCount = Object.values(quantities).reduce((sum, n) => sum + n, 0);
+
+
+
   // 1. Auto-focus on mount
   useEffect(() => {
     inputRef.current?.focus();
@@ -136,30 +164,111 @@ export default function ComponentPickerModal({ onSelect, onClose }) {
                 </p>
 
                 {/* Clean, unboxed 2-column list rows */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5">
-                  {items.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        onSelect(item);
-                        onClose();
-                        console.log(item);
-                      }}
-                      className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-card-hover text-left cursor-pointer transition-colors group"
-                    >
-                      <span className="text-brand/70 group-hover:text-brand transition-colors shrink-0">
-                        <ComponentIcon type={item.icon} size={16} />
-                      </span>
-                      <span className="text-xs font-medium text-heading group-hover:text-white transition-colors truncate">
-                        {item.label}
-                      </span>
-                    </button>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                  {items.map((item) => {
+                    const count = getCount(item.id);
+                    const isSelected = count > 0;
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => handleIncrement(item.id)}
+                        className={`relative w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-left cursor-pointer transition-all border ${
+                          isSelected
+                            ? 'border-brand/40 bg-brand/10 shadow-sm'
+                            : 'border-transparent hover:bg-card-hover'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span
+                            className="w-6 h-6 rounded flex items-center justify-center shrink-0 transition-transform group-hover:scale-110"
+                            style={{
+                              backgroundColor: `${item.color || '#3b82f6'}18`,
+                              color: item.color || '#3b82f6',
+                            }}
+                          >
+                            <ComponentIcon type={item.icon} size={14} color={item.color} />
+                          </span>
+                          <span className="text-xs font-medium text-heading truncate">
+                            {item.label}
+                          </span>
+                        </div>
+
+                        {/* Inline Micro Stepper */}
+                        {isSelected && (
+                          <div
+                            className="flex items-center gap-1 bg-panel border border-subtle rounded-md px-1 py-0.5 shrink-0 shadow-sm"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleDecrement(item.id)}
+                              className="w-4 h-4 flex items-center justify-center rounded text-dim hover:text-heading hover:bg-card text-xs font-bold transition-colors cursor-pointer"
+                              title="Decrease count"
+                            >
+                              −
+                            </button>
+                            <span className="min-w-[14px] text-center text-[11px] font-semibold text-brand px-0.5">
+                              {count}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleIncrement(item.id)}
+                              className="w-4 h-4 flex items-center justify-center rounded text-dim hover:text-heading hover:bg-card text-xs font-bold transition-colors cursor-pointer"
+                              title="Increase count"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))
           )}
         </div>
+        {/* ROW 4: PINNED BOTTOM FOOTER */}
+        <div className="px-5 py-3 border-t border-subtle bg-card/40 flex items-center justify-between shrink-0">
+          {/* Left: Count summary */}
+          <span className="text-xs text-muted">
+            {totalCount === 0
+              ? 'Click components to select'
+              : `${totalCount} component${totalCount > 1 ? 's' : ''} ready to add`}
+          </span>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 rounded-lg text-xs text-dim hover:text-heading transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+
+            <button
+              disabled={totalCount === 0}
+              onClick={() => {
+                // Expand dictionary quantities into an array of ComponentPrimitive
+                const itemsToAdd = [];
+                for (const [id, count] of Object.entries(quantities)) {
+                  const primitive = COMPONENT_LIBRARY.find((c) => c.id === id);
+                  if (primitive && count > 0) {
+                    for (let i = 0; i < count; i++) {
+                      itemsToAdd.push(primitive);
+                    }
+                  }
+                }
+                onSelect(itemsToAdd);
+                onClose();
+              }}
+              className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-brand text-white hover:bg-brand/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer"
+            >
+              Add to Board {totalCount > 0 && `(${totalCount})`}
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   );
