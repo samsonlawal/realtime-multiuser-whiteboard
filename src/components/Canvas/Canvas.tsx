@@ -77,6 +77,10 @@ export default function Canvas({
   const handleZoomOut   = () => setZoom((z) => clampZoom(z - ZOOM_STEP));
   const handleResetZoom = () => setZoom(100);
 
+  const cameraRef = useRef({ zoom, pan });
+cameraRef.current = { zoom, pan };
+
+
   // Must use imperative addEventListener with { passive: false } so that
   // e.preventDefault() actually works. React's synthetic onWheel is passive
   // by default — calling preventDefault() inside it is silently ignored,
@@ -88,9 +92,27 @@ export default function Canvas({
   const handler = (e: WheelEvent) => {
   e.preventDefault();
 
+  const rect = el.getBoundingClientRect();
+const mouseX = e.clientX - rect.left;
+const mouseY = e.clientY - rect.top;
+
+
   if (e.ctrlKey || e.metaKey) {
+    const currentZoom = cameraRef.current.zoom;
+    const currentPan  = cameraRef.current.pan;
+    const currentScale = currentZoom / 100;
+    
+    const worldX = (mouseX - currentPan.x) / currentScale;
+    const worldY = (mouseY - currentPan.y) / currentScale;
+  
     const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
-    setZoom((z) => clampZoom(z + delta));
+    const newZoom = clampZoom(currentZoom + delta);
+    const newScale = newZoom / 100;
+    
+    const newPanX = mouseX - (worldX * newScale);
+    const newPanY = mouseY - (worldY * newScale);
+    setZoom(newZoom);
+    setPan({ x: newPanX, y: newPanY });
     return;
   }
 
@@ -295,7 +317,6 @@ export default function Canvas({
       topCtx?.clearRect(0, 0, topCanvas.width, topCanvas.height);
     }
   };
-
 
   
   return (
