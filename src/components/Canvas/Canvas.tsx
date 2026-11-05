@@ -4,6 +4,7 @@ import CanvasNode from './CanvasNode';
 import { renderAllConnections, getAnchorPoint, drawBezierWire  } from '../../utils/geometry';
 import type { DraftConnection } from '../../types/whiteboard';
 import type { NodeEntity, ToolType, ConnectionEntity, PortDirection, ComponentPrimitive  } from '../../types/whiteboard';
+import Cursor from '../UserPresence/Cursor';
 
 const MIN_ZOOM = 30;
 const MAX_ZOOM = 300;
@@ -24,6 +25,14 @@ const cursorDict: Partial<Record<ToolType, string>> = {
  * - Scroll-wheel zoom support
  */
 
+
+export interface RemotePeer {
+  userId: string;
+  name?: string;
+  color: string;
+  cursor: { x: number; y: number } | null;
+}
+
 interface CanvasProps {
   activeTool: ToolType;
   onSelectTool: (tool: ToolType) => void;
@@ -35,6 +44,8 @@ interface CanvasProps {
   onSelectNode?: (nodeId: string) => void;
   onDeleteNode?: (nodeId: string) => void;
   onDuplicateNode?: (nodeId: string) => void;
+  onCursorMove?: (x: number, y: number) => void;
+  peers?: Record<string, RemotePeer>;
 }
 
 export default function Canvas({
@@ -48,6 +59,8 @@ export default function Canvas({
   onSelectNode = () => {},
   onDeleteNode = () => {},
   onDuplicateNode = () => {},
+  onCursorMove = () => {},
+  peers = {},
 }: CanvasProps) {
 
 
@@ -93,8 +106,8 @@ cameraRef.current = { zoom, pan };
   e.preventDefault();
 
   const rect = el.getBoundingClientRect();
-const mouseX = e.clientX - rect.left;
-const mouseY = e.clientY - rect.top;
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
 
 
   if (e.ctrlKey || e.metaKey) {
@@ -256,6 +269,13 @@ const mouseY = e.clientY - rect.top;
       return;
     }
 
+      if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const mouseWorldX = (e.clientX - rect.left - pan.x) / scale;
+    const mouseWorldY = (e.clientY - rect.top - pan.y) / scale;
+
+     onCursorMove?.(mouseWorldX, mouseWorldY);
+
     if (draftWire && topCanvasRef.current && containerRef.current) {
       const topCanvas = topCanvasRef.current;
       const topCtx = topCanvas.getContext('2d');
@@ -330,7 +350,7 @@ const mouseY = e.clientY - rect.top;
           onSelectNode?.('');
         }
       }}
-      className={`flex-1 relative h-full bg-canvas overflow-hidden select-none ${
+      className={`w-full h-full relative bg-canvas overflow-hidden select-none ${
         activeTool === 'hand' ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : ''
       }`}
       style={gridStyle}
@@ -366,7 +386,22 @@ const mouseY = e.clientY - rect.top;
             onDuplicateNode={onDuplicateNode}
           />
         ))}
+
+        {Object.values(peers).map((peer) =>
+          peer.cursor ? (
+            <Cursor
+              key={peer.userId}
+              name={peer.name || peer.userId}
+              x={peer.cursor.x}
+              y={peer.cursor.y}
+              fillHex={peer.color}
+            />
+          ) : null
+        )}
+
       </div>
+
+    
 
       {/* Layer 3: Top canvas (scratchpad for draft wire) - Decoupled from CSS transform */}
       <canvas

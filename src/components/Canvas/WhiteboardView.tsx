@@ -4,6 +4,8 @@ import LeftSidebar from './LeftSidebar';
 import Canvas from './Canvas';
 import PropertiesPanel from '../UserPresence/PropertiesPanel';
 import type { NodeEntity, ConnectionEntity, PortDirection, ComponentPrimitive, ToolType  } from '../../types/whiteboard';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useMultiplayer } from './../../hooks/useMultiplayer';
 
 /**
  * WhiteboardView:
@@ -32,6 +34,8 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
   const [connections, setConnections] = useState<ConnectionEntity[]>([]);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
+  const navigate = useNavigate()
 
 
   function handleSelectNode(nodeId: string | null) {
@@ -187,6 +191,11 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
     setConnections((prev) => [...prev, newConnection]);
   };
 
+  const { roomId } = useParams<{ roomId: string }>();
+
+
+  const { isConnected, peers, broadcastCursor } = useMultiplayer(roomId);
+
 
 
   return (
@@ -197,15 +206,17 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
         roomName="sys-design-prod"
         isLeftSidebarOpen={isLeftSidebarOpen}
         onToggleLeftSidebar={() => setIsLeftSidebarOpen((prev) => !prev)}
-        onBackToHome={onBackToHome}
+        onBackToHome={() => navigate('/')}
         onUndo={handleUndo}
         onRedo={handleRedo}
         onExport={handleExport}
         onShare={handleShare}
+        roomId={roomId}
       />
 
       {/* 2. Workspace Row */}
       <div className="flex-1 flex flex-row overflow-hidden relative">
+      <div className="w-full h-full overflow-hidden">
         {/* Left Docked Sidebar (Primitives & Connections) - toggled via CanvasHeader */}
         {isLeftSidebarOpen && (
           <LeftSidebar 
@@ -225,6 +236,8 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
           onSelectNode={handleSelectNode}
           onDeleteNode={handleDeleteNode}
           onDuplicateNode={handleDuplicateNode}
+          onCursorMove={broadcastCursor}
+          peers={peers}
         />
 
         {/* Right Docked Sidebar (Properties & Styling) */}
@@ -240,5 +253,7 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
         />
       </div>
     </div>
+    </div>
+
   );
 }

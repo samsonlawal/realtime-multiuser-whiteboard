@@ -1,6 +1,16 @@
 import { forwardRef } from 'react';
 
-const Cursor = forwardRef(function Cursor(
+export interface CursorProps {
+  x: number | null;
+  y: number | null;
+  name: string | null;
+  colorClass?: string;
+  fillHex?: string;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+const Cursor = forwardRef<HTMLDivElement, CursorProps>(function Cursor(
   {
     x,
     y,

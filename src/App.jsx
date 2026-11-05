@@ -1,18 +1,18 @@
 import { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './components/Home/Home';
 import WhiteboardView from './components/Canvas/WhiteboardView';
 
 function App() {
-  const [currentView, setCurrentView] = useState('home');
 
   return (
-    <>
-      {currentView === 'home' ? (
-        <Home onStartDrawing={() => setCurrentView('canvas')} />
-      ) : (
-        <WhiteboardView onBackToHome={() => setCurrentView('home')} />
-      )}
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/:roomId" element={<WhiteboardView />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

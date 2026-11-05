@@ -16,9 +16,11 @@ export default function CanvasHeader({
   onRedo = () => {},
   onExport = () => {},
   onShare = () => {},
+  roomId,
+
 }) {
   return (
-    <header className="h-12 border-b border-subtle bg-panel px-3 sm:px-4 flex items-center justify-between shrink-0 select-none z-30 font-poppins">
+    <header className="absolute top-0 left-0 right-0 h-12 border-b border-subtle bg-panel px-3 sm:px-4 flex items-center justify-between select-none z-30 font-poppins">
       {/* 1. Left Section: Return to Home, Reeley Identity & Sidebar Toggle */}
       <div className="flex items-center gap-2.5">
         {/* Back to Home Button */}
@@ -82,7 +84,7 @@ export default function CanvasHeader({
         </div>
 
         <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-card border border-subtle text-xs text-muted font-montserrat">
-          <span>{roomName}</span>
+          <span>{roomId}</span>
         </div>
       </div>
 

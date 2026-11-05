@@ -41,7 +41,7 @@ export default function PropertiesPanel({
   onSelectFill = () => {},
 }: PropertiesPanelProps) {
   return (
-    <aside className="w-64 border-l border-subtle bg-panel flex flex-col shrink-0 select-none z-20 font-poppins">
+    <aside className="absolute top-12 right-0 bottom-0 w-64 border-l border-subtle bg-panel flex flex-col select-none z-20 font-poppins">
       {/* Header */}
       <div className="h-10 px-4 border-b border-subtle flex items-center justify-between">
         <span className="font-semibold text-[10px] tracking-wider uppercase text-dim">

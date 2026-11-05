@@ -143,7 +143,7 @@ export default function LeftSidebar({ onSelectPrimitive = () => {}, connections 
 
   return (
     <>
-      <aside className="w-60 border-r border-subtle bg-panel flex flex-col shrink-0 select-none z-20 font-poppins">
+      <aside className="absolute top-12 left-0 bottom-0 w-60 border-r border-subtle bg-panel flex flex-col select-none z-20 font-poppins">
 
         {/* ── 1. Top Action: Add Component (pinned at top) ── */}
         <div className="p-3 border-b border-subtle shrink-0">
