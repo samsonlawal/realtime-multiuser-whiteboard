@@ -22,7 +22,7 @@ export function useMultiplayer(roomId: string | undefined) {
     return id;
     });
 
-        useEffect(() => {
+    useEffect(() => {
         if (!roomId) return;
 
         const socket = new WebSocket(`ws://localhost:8080?room=${roomId}&userId=${myUserId}`);
@@ -47,6 +47,12 @@ export function useMultiplayer(roomId: string | undefined) {
                             cursor: { x: data.x, y: data.y },
                         }
                     }))
+                } else if(data.type === 'user_left') {
+                    setPeers((prev) => {
+                        const next = { ...prev };
+                        delete next[data.userId]
+                        return next
+                    })
                 }
 
             } catch (err) {

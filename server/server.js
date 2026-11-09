@@ -32,20 +32,31 @@ wss.on('connection', (socket, request) => {
     const room = rooms.get(roomId)
     room.add(socket);
 
+
+    // Broadcasts messages to all other users in the room
     socket.on('message', (data) => {
-
         const message = data.toString()
-
-    for (const client of room) {
-        if (client !== socket && client.readyState === 1) {
-        client.send(message);
+        for (const client of room) {
+            if (client !== socket && client.readyState === 1) {
+            client.send(message);
+            }
         }
-    }
     });
 
 
     socket.on('close', () => {
     room.delete(socket);
+
+    const message = JSON.stringify({
+        type: 'user_left',
+        userId: userId,
+    })
+
+    for (const client of room) {
+        if (client !== socket && client.readyState === 1) {
+            client.send(message);
+        }
+    }
     console.log(`User ${userId} left room ${roomId}`);
 
     if (room.size === 0) {
