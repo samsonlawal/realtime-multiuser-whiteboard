@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ConnectionEntity, NodeEntity } from '../types/whiteboard';   
 
 
 export interface RemotePeer {
@@ -8,7 +9,8 @@ export interface RemotePeer {
   cursor: { x: number; y: number } | null;
 }
 
-export function useMultiplayer(roomId: string | undefined) {
+export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispatch<React.SetStateAction<NodeEntity[]>>,
+  setConnections: React.Dispatch<React.SetStateAction<ConnectionEntity[]>>) {
     const [peers, setPeers] = useState<Record<string, RemotePeer>>({});
     const [isConnected, setIsConnected] = useState(false);
     const socketRef = useRef<WebSocket | null>(null);
@@ -29,31 +31,75 @@ export function useMultiplayer(roomId: string | undefined) {
         socketRef.current = socket;
         
         socket.onopen = () => {
-        console.log(`[Multiplayer] Connected to room: ${roomId}`);
-        setIsConnected(true);
+            console.log(`[Multiplayer] Connected to room: ${roomId}`);
+            setIsConnected(true);
         };
 
         socket.onmessage = (event) => {
             try{
                 const data = JSON.parse(event.data)
 
-                if(data.type === 'cursor_move') {
-                    setPeers((prev) => ({
-                        ...prev,
-                        [data.userId]: {
-                            userId: data.userId,
-                            name: data.userId,
-                            color: data.color || '#3b82f6',
-                            cursor: { x: data.x, y: data.y },
-                        }
-                    }))
-                } else if(data.type === 'user_left') {
-                    setPeers((prev) => {
-                        const next = { ...prev };
-                        delete next[data.userId]
-                        return next
-                    })
-                }
+                switch(data.type) {
+                    case "cursor_move": 
+                        setPeers((prev) => ({
+                            ...prev,
+                            [data.userId]: {
+                                userId: data.userId,
+                                name: data.userId,
+                                color: data.color || '#3b82f6',
+                                cursor: { x: data.x, y: data.y },
+                            }
+                        }))
+
+                    break;
+
+                    case 'user_left':
+                        setPeers((prev) => {
+                            const next = { ...prev };
+                            delete next[data.userId]
+                            return next
+                        })
+                        break;
+
+                    case 'nodes_added':
+                        setNodes((prev) => [...prev, ...data.nodes])
+                        console.log(data)
+                    break;
+
+                    case 'node_moved':
+                        setNodes((prevNodes) =>
+                             prevNodes.map((prevNode) => (
+                            prevNode.id === data.id ? {...prevNode, x: data.x, y: data.y} : prevNode
+                             )))
+                        break;
+
+                    case 'node_deleted':
+                        setNodes((prevNodes) => 
+                            prevNodes.filter((n) => 
+                            n.id !== data.nodeId
+                        )
+                        )
+
+                         setConnections((prevConnections) => 
+                        prevConnections.filter((c) => 
+                            c.id !== data.nodeId
+                        )
+                        )
+                        break;
+
+                    case 'edge_added':
+                        setConnections((prevConnections) => [...prevConnections, data.connection])
+                        break;
+
+                    case 'edge_deleted':
+                        setConnections((prevConnections) => 
+                        prevConnections.filter((c) => 
+                            c.id !== data.edgeId
+                        )
+                        )
+                        break;
+              }
+
 
             } catch (err) {
                 console.error('[Multiplayer] Failed to parse message:', err);    
@@ -61,13 +107,13 @@ export function useMultiplayer(roomId: string | undefined) {
         } 
 
         socket.onclose = () => {
-        console.log('[Multiplayer] Disconnected from server');
-        setIsConnected(false);
+            console.log('[Multiplayer] Disconnected from server');
+            setIsConnected(false);
         };
 
         return () => {
-        socket.close();
-        socketRef.current = null;
+            socket.close();
+            socketRef.current = null;
         };
     }, [roomId]);
 
@@ -86,7 +132,13 @@ export function useMultiplayer(roomId: string | undefined) {
     };
 
 
-    return { isConnected, peers, broadcastCursor  };
+    const broadcastEvent = (payload: Record<string, unknown>) => {
+        const socket = socketRef.current;
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+            socket.send(JSON.stringify(payload));
+    }
+
+    return { isConnected, peers, broadcastCursor, broadcastEvent  };
 
 // 1. takes the roomId
 // 2. list of remote users(name id color and cursior coordinates)

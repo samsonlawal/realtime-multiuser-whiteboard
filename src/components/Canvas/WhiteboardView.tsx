@@ -36,6 +36,10 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const navigate = useNavigate()
+  const { roomId } = useParams<{ roomId: string }>();
+
+  const { isConnected, peers, broadcastCursor, broadcastEvent } = useMultiplayer(roomId, setNodes, setConnections);
+
 
 
   function handleSelectNode(nodeId: string | null) {
@@ -49,10 +53,17 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
     setConnections((prev) =>
       prev.filter((c) => c.fromNodeId !== nodeId && c.toNodeId !== nodeId)
     );
+
+    broadcastEvent({type: 'node_deleted', nodeId: nodeId})
+
   }
 
   function handleDeleteConnection(edgeId: string) {
     setConnections((prev) => prev.filter((c) => c.id !== edgeId));
+
+    broadcastEvent({type: 'edge_deleted', edgeId: edgeId})
+
+
   }
 
   // Duplicate Node with next Roman numeral and offset position
@@ -85,6 +96,8 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
 
     setNodes((prev) => [...prev, newNode]);
     setSelectedNodeId(newNode.id);
+
+    broadcastEvent({type: 'nodes_added', nodes: [newNode] })
   }
 
   // Keyboard Event Listener: Delete & Duplicate (Ctrl+D / Cmd+D)
@@ -141,6 +154,7 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
     });
 
     setNodes((prev) => [...prev, ...newNodes]);
+    broadcastEvent({ type: 'nodes_added', nodes: newNodes });
   };
 
   const handleUndo = () => {
@@ -172,6 +186,7 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
   prevNodes.map((prevNode) => (
     prevNode.id === id ? {...prevNode, x: newX, y: newY  } : prevNode)))
 
+    broadcastEvent({type: 'node_moved', id: id, x:newX, y: newY})
 }
 
   // Creates a permanent connection between two card ports
@@ -189,12 +204,13 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
       toPort,
     };
     setConnections((prev) => [...prev, newConnection]);
+
+    broadcastEvent({type: 'edge_added', connection: newConnection })
+
   };
 
-  const { roomId } = useParams<{ roomId: string }>();
 
 
-  const { isConnected, peers, broadcastCursor } = useMultiplayer(roomId);
 
 
 
