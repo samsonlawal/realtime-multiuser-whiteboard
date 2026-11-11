@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ConnectionEntity, NodeEntity } from '../types/whiteboard';   
+import { ConnectionEntity, NodeEntity, MultiplayerEvent } from '../types/whiteboard';   
 
 
 export interface RemotePeer {
@@ -30,11 +30,13 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
         const socket = new WebSocket(`ws://localhost:8080?room=${roomId}&userId=${myUserId}`);
         socketRef.current = socket;
         
+        // listend to the onConnetion from the server
         socket.onopen = () => {
             console.log(`[Multiplayer] Connected to room: ${roomId}`);
             setIsConnected(true);
         };
 
+        // Listenting to evetns from room members(message) from the server
         socket.onmessage = (event) => {
             try{
                 const data = JSON.parse(event.data)
@@ -63,14 +65,13 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
 
                     case 'nodes_added':
                         setNodes((prev) => [...prev, ...data.nodes])
-                        console.log(data)
                     break;
 
                     case 'node_moved':
                         setNodes((prevNodes) =>
-                             prevNodes.map((prevNode) => (
+                            prevNodes.map((prevNode) => (
                             prevNode.id === data.id ? {...prevNode, x: data.x, y: data.y} : prevNode
-                             )))
+                            )))
                         break;
 
                     case 'node_deleted':
@@ -80,10 +81,10 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
                         )
                         )
 
-                         setConnections((prevConnections) => 
-                        prevConnections.filter((c) => 
-                            c.id !== data.nodeId
-                        )
+                        setConnections((prevConnections) => 
+                            prevConnections.filter((c) => 
+                                c.fromNodeId !== data.nodeId && c.toNodeId !== data.nodeId
+                            )
                         )
                         break;
 
@@ -93,11 +94,16 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
 
                     case 'edge_deleted':
                         setConnections((prevConnections) => 
-                        prevConnections.filter((c) => 
-                            c.id !== data.edgeId
-                        )
+                            prevConnections.filter((c) => 
+                                c.id !== data.edgeId
+                            )
                         )
                         break;
+
+                        case('init_room'):
+                            setNodes(data.nodes)
+                            setConnections(data.connections)
+                            break;
               }
 
 
@@ -106,6 +112,7 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
             }
         } 
 
+        // when you leave and it listens to close from the server
         socket.onclose = () => {
             console.log('[Multiplayer] Disconnected from server');
             setIsConnected(false);
@@ -132,7 +139,9 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
     };
 
 
-    const broadcastEvent = (payload: Record<string, unknown>) => {
+
+
+    const broadcastEvent = (payload: MultiplayerEvent) => {
         const socket = socketRef.current;
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
             socket.send(JSON.stringify(payload));

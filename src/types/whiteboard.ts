@@ -1,5 +1,13 @@
 // ── System Whiteboard Data Contracts ──
 
+export type MultiplayerEvent =
+  | { type: 'nodes_added'; nodes: NodeEntity[] }
+  | { type: 'node_moved'; id: string; x: number; y: number }
+  | { type: 'node_deleted'; nodeId: string }
+  | { type: 'edge_added'; connection: ConnectionEntity }
+  | { type: 'edge_deleted'; edgeId: string }
+  | { type: 'init_room', nodes: NodeEntity[], connections: ConnectionEntity[]  };
+
 export type PortDirection = 'top' | 'right' | 'bottom' | 'left';
 
 export type ToolType =
