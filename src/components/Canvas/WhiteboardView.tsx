@@ -38,7 +38,7 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
   const navigate = useNavigate()
   const { roomId } = useParams<{ roomId: string }>();
 
-  const { isConnected, peers, broadcastCursor, broadcastEvent } = useMultiplayer(roomId, setNodes, setConnections);
+  const { isConnected, peers, currentUser, broadcastCursor, broadcastEvent } = useMultiplayer(roomId, setNodes, setConnections);
 
 
 
@@ -220,6 +220,7 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
       <CanvasHeader
         title="Distributed System Arch"
         roomName="sys-design-prod"
+        peers={[currentUser, ...Object.values(peers)]}
         isLeftSidebarOpen={isLeftSidebarOpen}
         onToggleLeftSidebar={() => setIsLeftSidebarOpen((prev) => !prev)}
         onBackToHome={() => navigate('/')}

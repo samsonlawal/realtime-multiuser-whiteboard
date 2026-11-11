@@ -4,7 +4,7 @@ import { ConnectionEntity, NodeEntity, MultiplayerEvent } from '../types/whitebo
 
 export interface RemotePeer {
   userId: string;
-  name?: string;
+  name: string;
   color: string;
   cursor: { x: number; y: number } | null;
 }
@@ -15,17 +15,40 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
     const [isConnected, setIsConnected] = useState(false);
     const socketRef = useRef<WebSocket | null>(null);
 
+    const userProfiles = [
+        { color: '#3b82f6', name: 'Falcon' },
+        { color: '#a855f7', name: 'Panther' },
+        { color: '#10b981', name: 'Wolf' },
+        { color: '#f59e0b', name: 'Fox' },
+        { color: '#f43f5e', name: 'Hawk' },
+        { color: '#06b6d4', name: 'Otter' },
+    ];
+
     const [myUserId] = useState(() => {
-    let id = localStorage.getItem('canvas_device_id');
-    if (!id) {
-        id = `user-${crypto.randomUUID().slice(0, 5)}`;
-        localStorage.setItem('canvas_device_id', id);
-    }
-    return id;
+        let id = sessionStorage.getItem('canvas_device_id');
+        if (!id) {
+            id = `user-${crypto.randomUUID().slice(0, 5)}`;
+            sessionStorage.setItem('canvas_device_id', id);
+        }
+        return id;
+    });
+
+    const [myProfile] = useState(() => {
+        const saved = sessionStorage.getItem('canvas_user_profile');
+        if (saved) {
+            try {
+                return JSON.parse(saved) as { color: string; name: string };
+            } catch {}
+        }
+        const picked = userProfiles[Math.floor(Math.random() * userProfiles.length)];
+        sessionStorage.setItem('canvas_user_profile', JSON.stringify(picked));
+        return picked;
     });
 
     useEffect(() => {
         if (!roomId) return;
+
+
 
         const socket = new WebSocket(`ws://localhost:8080?room=${roomId}&userId=${myUserId}`);
         socketRef.current = socket;
@@ -47,7 +70,7 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
                             ...prev,
                             [data.userId]: {
                                 userId: data.userId,
-                                name: data.userId,
+                                name: data.name || data.userId,
                                 color: data.color || '#3b82f6',
                                 cursor: { x: data.x, y: data.y },
                             }
@@ -124,30 +147,42 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
         };
     }, [roomId]);
 
+    const lastCursorSendRef = useRef(0);
+
     const broadcastCursor = (x: number, y: number) => {
-    const socket = socketRef.current;
-    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        const now = Date.now();
+        if (now - lastCursorSendRef.current < 30) return;
+        lastCursorSendRef.current = now;
 
-    socket.send(
-        JSON.stringify({
-        type: 'cursor_move',
-        userId: myUserId,
-        x: Math.round(x),
-        y: Math.round(y),
-        })
-    );
+        const socket = socketRef.current;
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+        socket.send(
+            JSON.stringify({
+                type: 'cursor_move',
+                userId: myUserId,
+                name: myProfile.name,
+                x: Math.round(x),
+                y: Math.round(y),
+                color: myProfile.color,
+            })
+        );
     };
-
-
-
 
     const broadcastEvent = (payload: MultiplayerEvent) => {
         const socket = socketRef.current;
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
-            socket.send(JSON.stringify(payload));
-    }
+        socket.send(JSON.stringify(payload));
+    };
 
-    return { isConnected, peers, broadcastCursor, broadcastEvent  };
+    const currentUser = {
+        userId: myUserId,
+        name: myProfile.name,
+        color: myProfile.color,
+        isSelf: true,
+    };
+
+    return { isConnected, peers, currentUser, broadcastCursor, broadcastEvent };
 
 // 1. takes the roomId
 // 2. list of remote users(name id color and cursior coordinates)

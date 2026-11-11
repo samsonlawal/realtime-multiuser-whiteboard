@@ -274,7 +274,7 @@ cameraRef.current = { zoom, pan };
     const mouseWorldX = (e.clientX - rect.left - pan.x) / scale;
     const mouseWorldY = (e.clientY - rect.top - pan.y) / scale;
 
-     onCursorMove?.(mouseWorldX, mouseWorldY);
+    onCursorMove?.(mouseWorldX, mouseWorldY);
 
     if (draftWire && topCanvasRef.current && containerRef.current) {
       const topCanvas = topCanvasRef.current;
