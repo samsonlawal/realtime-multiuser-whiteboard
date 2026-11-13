@@ -4,6 +4,8 @@ import LeftSidebar from './LeftSidebar';
 import Canvas from './Canvas';
 import PropertiesPanel from '../UserPresence/PropertiesPanel';
 import type { NodeEntity, ConnectionEntity, PortDirection, ComponentPrimitive, ToolType  } from '../../types/whiteboard';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useMultiplayer } from './../../hooks/useMultiplayer';
 
 /**
  * WhiteboardView:
@@ -33,6 +35,12 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
+  const navigate = useNavigate()
+  const { roomId } = useParams<{ roomId: string }>();
+
+  const { isConnected, peers, currentUser, broadcastCursor, broadcastEvent } = useMultiplayer(roomId, setNodes, setConnections);
+
+
 
   function handleSelectNode(nodeId: string | null) {
     setSelectedNodeId(nodeId);
@@ -45,10 +53,17 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
     setConnections((prev) =>
       prev.filter((c) => c.fromNodeId !== nodeId && c.toNodeId !== nodeId)
     );
+
+    broadcastEvent({type: 'node_deleted', nodeId: nodeId})
+
   }
 
   function handleDeleteConnection(edgeId: string) {
     setConnections((prev) => prev.filter((c) => c.id !== edgeId));
+
+    broadcastEvent({type: 'edge_deleted', edgeId: edgeId})
+
+
   }
 
   // Duplicate Node with next Roman numeral and offset position
@@ -81,6 +96,8 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
 
     setNodes((prev) => [...prev, newNode]);
     setSelectedNodeId(newNode.id);
+
+    broadcastEvent({type: 'nodes_added', nodes: [newNode] })
   }
 
   // Keyboard Event Listener: Delete & Duplicate (Ctrl+D / Cmd+D)
@@ -137,6 +154,7 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
     });
 
     setNodes((prev) => [...prev, ...newNodes]);
+    broadcastEvent({ type: 'nodes_added', nodes: newNodes });
   };
 
   const handleUndo = () => {
@@ -168,6 +186,7 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
   prevNodes.map((prevNode) => (
     prevNode.id === id ? {...prevNode, x: newX, y: newY  } : prevNode)))
 
+    broadcastEvent({type: 'node_moved', id: id, x:newX, y: newY})
 }
 
   // Creates a permanent connection between two card ports
@@ -185,7 +204,13 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
       toPort,
     };
     setConnections((prev) => [...prev, newConnection]);
+
+    broadcastEvent({type: 'edge_added', connection: newConnection })
+
   };
+
+
+
 
 
 
@@ -195,17 +220,20 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
       <CanvasHeader
         title="Distributed System Arch"
         roomName="sys-design-prod"
+        peers={[currentUser, ...Object.values(peers)]}
         isLeftSidebarOpen={isLeftSidebarOpen}
         onToggleLeftSidebar={() => setIsLeftSidebarOpen((prev) => !prev)}
-        onBackToHome={onBackToHome}
+        onBackToHome={() => navigate('/')}
         onUndo={handleUndo}
         onRedo={handleRedo}
         onExport={handleExport}
         onShare={handleShare}
+        roomId={roomId}
       />
 
       {/* 2. Workspace Row */}
       <div className="flex-1 flex flex-row overflow-hidden relative">
+      <div className="w-full h-full overflow-hidden">
         {/* Left Docked Sidebar (Primitives & Connections) - toggled via CanvasHeader */}
         {isLeftSidebarOpen && (
           <LeftSidebar 
@@ -225,6 +253,8 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
           onSelectNode={handleSelectNode}
           onDeleteNode={handleDeleteNode}
           onDuplicateNode={handleDuplicateNode}
+          onCursorMove={broadcastCursor}
+          peers={peers}
         />
 
         {/* Right Docked Sidebar (Properties & Styling) */}
@@ -240,5 +270,7 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
         />
       </div>
     </div>
+    </div>
+
   );
 }

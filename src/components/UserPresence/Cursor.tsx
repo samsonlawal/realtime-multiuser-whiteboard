@@ -1,12 +1,22 @@
 import { forwardRef } from 'react';
 
-const Cursor = forwardRef(function Cursor(
+export interface CursorProps {
+  x: number | null;
+  y: number | null;
+  name: string | null;
+  colorClass?: string;
+  fillHex?: string;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+const Cursor = forwardRef<HTMLDivElement, CursorProps>(function Cursor(
   {
     x,
     y,
     name,
-    colorClass = 'bg-brand',
-    fillHex = '#3b82f6',
+    colorClass = ``,
+    fillHex = '',
     className = '',
     style,
     ...props
@@ -45,7 +55,8 @@ const Cursor = forwardRef(function Cursor(
       </svg>
 
       <div
-        className={`absolute left-3.5 top-3.5 text-white text-[11px] font-semibold px-2 py-0.5 rounded-md whitespace-nowrap shadow-md tracking-wider ${colorClass}`}
+        className={`absolute left-3.5 top-3.5 text-white text-[11px] font-semibold px-2 py-0.5 rounded-md whitespace-nowrap shadow-md tracking-wider`}
+        style={{backgroundColor: fillHex}}
       >
         {name}
       </div>

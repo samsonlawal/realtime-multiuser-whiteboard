@@ -4,6 +4,7 @@ import CanvasNode from './CanvasNode';
 import { renderAllConnections, getAnchorPoint, drawBezierWire  } from '../../utils/geometry';
 import type { DraftConnection } from '../../types/whiteboard';
 import type { NodeEntity, ToolType, ConnectionEntity, PortDirection, ComponentPrimitive  } from '../../types/whiteboard';
+import Cursor from '../UserPresence/Cursor';
 
 const MIN_ZOOM = 30;
 const MAX_ZOOM = 300;
@@ -24,6 +25,14 @@ const cursorDict: Partial<Record<ToolType, string>> = {
  * - Scroll-wheel zoom support
  */
 
+
+export interface RemotePeer {
+  userId: string;
+  name?: string;
+  color: string;
+  cursor: { x: number; y: number } | null;
+}
+
 interface CanvasProps {
   activeTool: ToolType;
   onSelectTool: (tool: ToolType) => void;
@@ -35,6 +44,8 @@ interface CanvasProps {
   onSelectNode?: (nodeId: string) => void;
   onDeleteNode?: (nodeId: string) => void;
   onDuplicateNode?: (nodeId: string) => void;
+  onCursorMove?: (x: number, y: number) => void;
+  peers?: Record<string, RemotePeer>;
 }
 
 export default function Canvas({
@@ -48,6 +59,8 @@ export default function Canvas({
   onSelectNode = () => {},
   onDeleteNode = () => {},
   onDuplicateNode = () => {},
+  onCursorMove = () => {},
+  peers = {},
 }: CanvasProps) {
 
 
@@ -59,15 +72,17 @@ export default function Canvas({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef<{ 
-  startX: number; 
-  startY: number; 
-  initialPanX: number; 
-  initialPanY: number; 
+    startX: number; 
+    startY: number; 
+    initialPanX: number; 
+    initialPanY: number; 
   }>({ startX: 0, startY: 0, initialPanX: 0, initialPanY: 0 });
 
-const [draftWire, setDraftWire] = useState<DraftConnection | null>(null);
-
-
+  const [draftWire, setDraftWire] = useState<DraftConnection | null>(null);
+  const [dimensions, setDimensions] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1920,
+    height: typeof window !== 'undefined' ? window.innerHeight : 1080,
+  }));
 
   const clampZoom = (val: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, val));
 
@@ -75,39 +90,116 @@ const [draftWire, setDraftWire] = useState<DraftConnection | null>(null);
   const handleZoomOut   = () => setZoom((z) => clampZoom(z - ZOOM_STEP));
   const handleResetZoom = () => setZoom(100);
 
+  const cameraRef = useRef({ zoom, pan });
+cameraRef.current = { zoom, pan };
+
+
   // Must use imperative addEventListener with { passive: false } so that
   // e.preventDefault() actually works. React's synthetic onWheel is passive
   // by default — calling preventDefault() inside it is silently ignored,
   // which means Chrome zooms the whole page instead of this canvas.
-  useEffect(() => {
+ useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const handler = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
-      setZoom((z) => clampZoom(z + delta));
-    };
+    
+  const handler = (e: WheelEvent) => {
+  e.preventDefault();
+
+  const rect = el.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+
+
+  if (e.ctrlKey || e.metaKey) {
+    const currentZoom = cameraRef.current.zoom;
+    const currentPan  = cameraRef.current.pan;
+    const currentScale = currentZoom / 100;
+    
+    const worldX = (mouseX - currentPan.x) / currentScale;
+    const worldY = (mouseY - currentPan.y) / currentScale;
+  
+    const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
+    const newZoom = clampZoom(currentZoom + delta);
+    const newScale = newZoom / 100;
+    
+    const newPanX = mouseX - (worldX * newScale);
+    const newPanY = mouseY - (worldY * newScale);
+    setZoom(newZoom);
+    setPan({ x: newPanX, y: newPanY });
+    return;
+  }
+
+  if (e.shiftKey) {
+    setPan((prev) => ({
+      ...prev,
+      x: prev.x - e.deltaY,
+    }));
+    return;
+  }
+
+  setPan((prev) => ({
+    x: prev.x - e.deltaX,
+    y: prev.y - e.deltaY,
+  }));
+};
+
     el.addEventListener('wheel', handler, { passive: false });
     return () => el.removeEventListener('wheel', handler);    
   }, []);
 
+  // Track container dimensions so canvas internal pixel buffer always matches the screen
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const updateSize = () => {
+      const rect = container.getBoundingClientRect();
+      const w = Math.round(rect.width);
+      const h = Math.round(rect.height);
+      if (w > 0 && h > 0) {
+        setDimensions((prev) => (prev.width === w && prev.height === h ? prev : { width: w, height: h }));
+      }
+    };
+    updateSize();
+    const observer = new ResizeObserver(() => {
+      updateSize();
+    });
+    observer.observe(container);
+    window.addEventListener('resize', updateSize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
+  }, []);
 
   useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && draftWire) {
-      setDraftWire(null);
-      // Clear top canvas
-      const topCanvas = topCanvasRef.current;
-      topCanvas?.getContext('2d')?.clearRect(0, 0, topCanvas.width, topCanvas.height);
-    }
-  };
-  window.addEventListener('keydown', handleKeyDown);
-  return () => window.removeEventListener('keydown', handleKeyDown);
-}, [draftWire]);
-
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && draftWire) {
+        setDraftWire(null);
+        const topCanvas = topCanvasRef.current;
+        topCanvas?.getContext('2d')?.clearRect(0, 0, topCanvas.width, topCanvas.height);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [draftWire]);
 
   const scale = zoom / 100;
+
+  // Redraw permanent connections on the bottom canvas in camera world-space
+  useEffect(() => {
+    const canvas = bottomCanvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(pan.x, pan.y);
+    ctx.scale(scale, scale);
+    renderAllConnections(ctx, connections, nodes);
+    ctx.restore();
+  }, [connections, nodes, pan, scale, dimensions]);
 
   // Coarse grid cell = 50px at 100% zoom → scales with zoom
   const coarseCell = 50;
@@ -119,25 +211,19 @@ const [draftWire, setDraftWire] = useState<DraftConnection | null>(null);
   const coarseOpacity = Math.max(0.03, Math.min(0.07, zoom / 1500 + 0.03));
 
   const gridStyle = {
-
-      backgroundPosition: `${pan.x}px ${pan.y}px`,
-
-
+    backgroundPosition: `${pan.x}px ${pan.y}px`,
     backgroundImage: [
-      // Fine sub-grid
       fineOpacity > 0
         ? `linear-gradient(to right, rgba(255,255,255,${fineOpacity}) 1px, transparent 1px)`
         : null,
       fineOpacity > 0
         ? `linear-gradient(to bottom, rgba(255,255,255,${fineOpacity}) 1px, transparent 1px)`
         : null,
-      // Coarse grid
       `linear-gradient(to right, rgba(255,255,255,${coarseOpacity}) 1px, transparent 1px)`,
       `linear-gradient(to bottom, rgba(255,255,255,${coarseOpacity}) 1px, transparent 1px)`,
     ]
       .filter(Boolean)
       .join(', '),
-
     backgroundSize: [
       fineOpacity > 0 ? `${fineCell * scale}px ${fineCell * scale}px` : null,
       fineOpacity > 0 ? `${fineCell * scale}px ${fineCell * scale}px` : null,
@@ -148,126 +234,111 @@ const [draftWire, setDraftWire] = useState<DraftConnection | null>(null);
       .join(', '),
   };
 
-  const handlePointerDown = (e: React.PointerEvent
-) => {
-  // Only pan if Hand tool is active OR middle-mouse button is clicked
-  if (activeTool !== 'hand' && e.button !== 1) return;
-
-  // Locks mouse tracking to this element even if cursor leaves the window
-  e.currentTarget.setPointerCapture(e.pointerId);
-
-  panStartRef.current = {
-    startX: e.clientX,
-    startY: e.clientY,
-    initialPanX: pan.x,
-    initialPanY: pan.y,
-  };
-  setIsPanning(true);
-};
-
-const handlePointerMove = (e: React.PointerEvent
-) => {
-  
-    if (isPanning) {
-    const deltaX = e.clientX - panStartRef.current.startX;
-    const deltaY = e.clientY - panStartRef.current.startY;
-    setPan({
-      x: panStartRef.current.initialPanX + deltaX,
-      y: panStartRef.current.initialPanY + deltaY,
-    });
-    return;
-  }
-
-
-  if (draftWire && topCanvasRef.current && containerRef.current) {
-    const topCanvas = topCanvasRef.current;
-    const topCtx = topCanvas.getContext('2d');
-    if (!topCtx) return;
-
-    const rect = containerRef.current.getBoundingClientRect();
-    const mouseCanvasX = (e.clientX - rect.left - pan.x) / scale;
-    const mouseCanvasY = (e.clientY - rect.top - pan.y) / scale;
-
-    if (topCanvas.width !== rect.width || topCanvas.height !== rect.height) {
-      topCanvas.width = rect.width;
-      topCanvas.height = rect.height;
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // If draft wire is active and user clicks empty canvas space, cancel it
+    if (draftWire) {
+      setDraftWire(null);
+      const topCanvas = topCanvasRef.current;
+      topCanvas?.getContext('2d')?.clearRect(0, 0, topCanvas.width, topCanvas.height);
+      return;
     }
-    topCtx.clearRect(0, 0, topCanvas.width, topCanvas.height);
 
-    drawBezierWire(
-      topCtx,
-      { x: draftWire.startX, y: draftWire.startY },
-      { x: mouseCanvasX, y: mouseCanvasY },
-      draftWire.fromPort,
-      'left',
-      { color: '#3b82f6', isDashed: true }
-    );
-  }
+    // Only pan if Hand tool is active OR middle-mouse button is clicked
+    if (activeTool !== 'hand' && e.button !== 1) return;
 
+    // Locks mouse tracking to this element even if cursor leaves the window
+    e.currentTarget.setPointerCapture(e.pointerId);
 
+    panStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialPanX: pan.x,
+      initialPanY: pan.y,
+    };
+    setIsPanning(true);
+  };
 
-};
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (isPanning) {
+      const deltaX = e.clientX - panStartRef.current.startX;
+      const deltaY = e.clientY - panStartRef.current.startY;
+      setPan({
+        x: panStartRef.current.initialPanX + deltaX,
+        y: panStartRef.current.initialPanY + deltaY,
+      });
+      return;
+    }
 
-const handlePointerUp = (e: React.PointerEvent
-) => {
-  if (!isPanning) return;
-  setIsPanning(false);
-  try {
-    e.currentTarget.releasePointerCapture(e.pointerId);
-  } catch {}
-};
+      if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const mouseWorldX = (e.clientX - rect.left - pan.x) / scale;
+    const mouseWorldY = (e.clientY - rect.top - pan.y) / scale;
 
+    onCursorMove?.(mouseWorldX, mouseWorldY);
 
-useEffect(() => {
+    if (draftWire && topCanvasRef.current && containerRef.current) {
+      const topCanvas = topCanvasRef.current;
+      const topCtx = topCanvas.getContext('2d');
+      if (!topCtx) return;
 
-  const canvas = bottomCanvasRef.current
-  if(!canvas) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const mouseWorldX = (e.clientX - rect.left - pan.x) / scale;
+      const mouseWorldY = (e.clientY - rect.top - pan.y) / scale;
 
-  const ctx = canvas.getContext('2d')
-  if(!ctx) return 
+      topCtx.clearRect(0, 0, topCanvas.width, topCanvas.height);
+      topCtx.save();
+      topCtx.translate(pan.x, pan.y);
+      topCtx.scale(scale, scale);
 
-    const rect = containerRef.current?.getBoundingClientRect();
-  if (rect && (canvas.width !== rect.width || canvas.height !== rect.height)) {
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-  }
-  
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-  renderAllConnections(ctx, connections, nodes);
+      drawBezierWire(
+        topCtx,
+        { x: draftWire.startX, y: draftWire.startY },
+        { x: mouseWorldX, y: mouseWorldY },
+        draftWire.fromPort,
+        'left',
+        { color: '#3b82f6', isDashed: true }
+      );
 
+      topCtx.restore();
+    }
+  };
 
-}, [connections, nodes])
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!isPanning) return;
+    setIsPanning(false);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+  };
 
-
-const handlePortClick = (nodeId: string, port: PortDirection) => {
-
-  if (!draftWire) {
-    const sourceNode = nodes.find((n) => n.id === nodeId);
-    if (!sourceNode) return;
-    const startPoint = getAnchorPoint(sourceNode, port);
-    setDraftWire({
-      fromNodeId: nodeId,
-      fromPort: port,
-      startX: startPoint.x,
-      startY: startPoint.y,
-      currentX: startPoint.x,
-      currentY: startPoint.y,
-    });
-    return;
-  }
-  // Case B: Second Click (Finish the wire!)
-  if (draftWire.fromNodeId !== nodeId) { // don't connect a card to itself
-    onConnect?.(draftWire.fromNodeId, draftWire.fromPort, nodeId, port);
-  }
-   setDraftWire(null);
+  const handlePortClick = (nodeId: string, port: PortDirection) => {
+    if (!draftWire) {
+      const sourceNode = nodes.find((n) => n.id === nodeId);
+      if (!sourceNode) return;
+      const startPoint = getAnchorPoint(sourceNode, port);
+      setDraftWire({
+        fromNodeId: nodeId,
+        fromPort: port,
+        startX: startPoint.x,
+        startY: startPoint.y,
+        currentX: startPoint.x,
+        currentY: startPoint.y,
+      });
+      return;
+    }
+    // Case B: Second Click (Finish the wire!)
+    if (draftWire.fromNodeId !== nodeId) { // don't connect a card to itself
+      onConnect?.(draftWire.fromNodeId, draftWire.fromPort, nodeId, port);
+    }
+    setDraftWire(null);
     const topCanvas = topCanvasRef.current;
     if (topCanvas) {
       const topCtx = topCanvas.getContext('2d');
       topCtx?.clearRect(0, 0, topCanvas.width, topCanvas.height);
     }
-}
+  };
 
-
+  
   return (
     <main
       ref={containerRef}
@@ -279,41 +350,29 @@ const handlePortClick = (nodeId: string, port: PortDirection) => {
           onSelectNode?.('');
         }
       }}
-      className={`flex-1 relative h-full bg-canvas overflow-hidden select-none ${
+      className={`w-full h-full relative bg-canvas overflow-hidden select-none ${
         activeTool === 'hand' ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : ''
       }`}
       style={gridStyle}
     >
-      {/*
-        Canvas layers are inside a scale wrapper.
-        This makes drawn content zoom visually.
-        In Milestone 2 we'll also apply the inverse transform to
-        mouse coordinates before drawing, so drawing stays accurate.
-      */}
+      {/* Layer 1: Bottom canvas (committed connections) - Decoupled from CSS transform */}
+      <canvas
+        ref={bottomCanvasRef}
+        width={dimensions.width}
+        height={dimensions.height}
+        className="absolute inset-0 block pointer-events-none"
+      />
+
+      {/* Layer 2: World space interactive HTML cards (transformed by camera) */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
           transformOrigin: '0 0',
+          pointerEvents: 'none',
         }}
       >
-        {/* Layer 1: Bottom canvas (committed shapes) */}
-        <canvas
-          ref={bottomCanvasRef}
-          className="absolute inset-0 block w-full h-full pointer-events-none"
-        />
-
-
-
-        {/* Layer 3: Top canvas (active draw + remote cursors) */}
-        <canvas
-          ref={topCanvasRef}
-          className={`absolute inset-0 block w-full h-full ${
-            cursorDict[activeTool] || 'cursor-crosshair'}  ${activeTool === 'select' ? 'pointer-events-none' : ''}
-          `}
-        />
-
         {nodes.map((node) => (
           <CanvasNode
             key={node.id}
@@ -328,8 +387,29 @@ const handlePortClick = (nodeId: string, port: PortDirection) => {
           />
         ))}
 
-        
+        {Object.values(peers).map((peer) =>
+          peer.cursor ? (
+            <Cursor
+              key={peer.userId}
+              name={peer.name || peer.userId}
+              x={peer.cursor.x}
+              y={peer.cursor.y}
+              fillHex={peer.color}
+            />
+          ) : null
+        )}
+
       </div>
+
+    
+
+      {/* Layer 3: Top canvas (scratchpad for draft wire) - Decoupled from CSS transform */}
+      <canvas
+        ref={topCanvasRef}
+        width={dimensions.width}
+        height={dimensions.height}
+        className="absolute inset-0 block pointer-events-none"
+      />
 
       {/* Center welcome guide */}
       {nodes.length === 0 && (

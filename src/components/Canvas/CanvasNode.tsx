@@ -112,7 +112,7 @@ export default function CanvasNode({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      className={`absolute group select-none cursor-move rounded-xl border transition-colors duration-150 shadow-md ${
+      className={`absolute pointer-events-auto group select-none cursor-move rounded-xl border transition-colors duration-150 shadow-md ${
         isCardActive
           ? 'bg-panel ring-1'
           : 'bg-panel/95 border-subtle hover:shadow-lg'
