@@ -50,7 +50,8 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
 
 
 
-        const socket = new WebSocket(`ws://localhost:8080?room=${roomId}&userId=${myUserId}`);
+        const wsBaseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
+        const socket = new WebSocket(`${wsBaseUrl}?room=${roomId}&userId=${myUserId}`);
         socketRef.current = socket;
         
         // listend to the onConnetion from the server

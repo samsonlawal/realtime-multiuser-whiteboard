@@ -150,16 +150,14 @@ wss.on('connection', async (socket, request) => {
     }
     console.log(`User ${userId} left room ${roomId}`);
 
-    if (room.size === 0) {
+    if (room.clients.size === 0) {
         roomsCache.delete(roomId);
     }
     });
 
-
-    
-
 });
 
-server.listen(8080, () => {
-    console.log('Server listening on http://localhost:8080 and ws://localhost:8080');
-})
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+});
