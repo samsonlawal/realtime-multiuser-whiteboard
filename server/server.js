@@ -1,5 +1,6 @@
 import http from 'http'
 import { WebSocketServer } from 'ws'
+import { ensureRoom, getRoomState, addNodes, moveNode, deleteNode, addConnection, deleteConnection } from './roomQueries.js'
 
 // Create Server
 const server = http.createServer((req, res) => {
@@ -14,11 +15,34 @@ const server = http.createServer((req, res) => {
 
 // Create web-sockets
 const wss = new WebSocketServer({ server })
-const rooms = new Map();
+const roomsCache = new Map();
+
+// TODO (Post-MVP): Deduplicate concurrent room loads from Neon so two sockets
+// joining at the same millisecond never overwrite roomsCache with separate client Sets.
+// const pendingLoads = new Map();
+// async function getOrLoadRoom(roomId) {
+//     if (roomsCache.has(roomId)) {
+//         return roomsCache.get(roomId);
+//     }
+//     if (pendingLoads.has(roomId)) {
+//         return pendingLoads.get(roomId);
+//     }
+//     const loadPromise = (async () => {
+//         await ensureRoom(roomId);
+//         const { nodes, connections } = await getRoomState(roomId);
+//         const room = { clients: new Set(), nodes, connections };
+//         roomsCache.set(roomId, room);
+//         return room;
+//     })().finally(() => {
+//         pendingLoads.delete(roomId);
+//     });
+//     pendingLoads.set(roomId, loadPromise);
+//     return loadPromise;
+// }l
 
 // Turn web-socket on when any user joins
 // socket: one specific device, user or connection (on, send, w)
-wss.on('connection', (socket, request) => {
+wss.on('connection', async (socket, request) => {
     const parsedUrl = new URL(request.url, 'http://localhost:8080');
     const roomId = parsedUrl.searchParams.get('room');
     const userId = parsedUrl.searchParams.get('userId') || 'anon';
@@ -26,16 +50,22 @@ wss.on('connection', (socket, request) => {
 
     console.log(`User ${userId} connected to room ${roomId}`);
 
+
     // Add sockets to rooms and share the empty arrays or
     //  existing data in the room with new sockets
-    if (!rooms.has(roomId)) {
-        rooms.set(roomId,{
+    if (!roomsCache.has(roomId)) {
+
+        await ensureRoom(roomId)
+        const { nodes, connections } = await getRoomState(roomId);
+
+        roomsCache.set(roomId, {
             clients: new Set(),
-            nodes: [],
-            connections: []
+            nodes: nodes,
+            connections: connections
     })
     }
-    const room = rooms.get(roomId)
+
+    const room = roomsCache.get(roomId)
     room.clients.add(socket);
 
     // sending a message fromm the server to  the new socket/user
@@ -60,13 +90,16 @@ wss.on('connection', (socket, request) => {
 
                     case 'nodes_added':
                         room.nodes.push(...parsed.nodes)
-                    break;
+                        console.log(roomId, ...parsed.nodes)
+                        addNodes(roomId, parsed.nodes).catch(console.error);
+                        break;
 
                     case 'node_moved': {
                         const node = room.nodes.find((n) => n.id === parsed.id)
                         if(node) {
                             node.x = parsed.x
                             node.y = parsed.y
+                            moveNode(parsed.id, parsed.x, parsed.y).catch(console.error);
                         }
                         break;
                     }
@@ -75,15 +108,17 @@ wss.on('connection', (socket, request) => {
                         room.nodes = room.nodes.filter((n) => n.id !== parsed.nodeId)
                         room.connections = room.connections.filter(
                             (c) => c.fromNodeId !== parsed.nodeId && c.toNodeId !== parsed.nodeId)
-
+                        deleteNode(parsed.nodeId).catch(console.error);
                         break;
 
                     case 'edge_added':
                         room.connections.push(parsed.connection)
+                        addConnection(roomId, parsed.connection).catch(console.error);
                         break;
 
                     case 'edge_deleted':
                         room.connections = room.connections.filter((c) => c.id !== parsed.edgeId)
+                        deleteConnection(parsed.edgeId).catch(console.error);
                         break;
               }
 
@@ -115,10 +150,9 @@ wss.on('connection', (socket, request) => {
     }
     console.log(`User ${userId} left room ${roomId}`);
 
-    // if (room.size === 0) {
-    //     rooms.delete(roomId);
-    //     console.log(`Room ${roomId} is empty and closed.`);
-    // }
+    if (room.size === 0) {
+        roomsCache.delete(roomId);
+    }
     });
 
 

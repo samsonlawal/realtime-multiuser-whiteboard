@@ -4,7 +4,7 @@ import Hero from './Hero';
 import ArchitectureCards from './ArchitectureCards';
 import Footer from './Footer';
 
-export default function Home({ onStartDrawing }) {
+export default function Home() {
 
   const navigate = useNavigate();
 

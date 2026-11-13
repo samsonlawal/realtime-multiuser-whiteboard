@@ -2,8 +2,6 @@ import Button from '../reusables/Button';
 import Logo from '../reusables/Logo';
 
 export default function CanvasHeader({
-  title = 'System Architecture v1',
-  roomName = 'sys-design-prod',
   peers = [
     { name: 'You', color: '#3b82f6', isSelf: true },
     { name: 'Sarah', color: '#a855f7' },
