@@ -19,26 +19,34 @@ const roomsCache = new Map();
 
 // TODO (Post-MVP): Deduplicate concurrent room loads from Neon so two sockets
 // joining at the same millisecond never overwrite roomsCache with separate client Sets.
-// const pendingLoads = new Map();
-// async function getOrLoadRoom(roomId) {
-//     if (roomsCache.has(roomId)) {
-//         return roomsCache.get(roomId);
-//     }
-//     if (pendingLoads.has(roomId)) {
-//         return pendingLoads.get(roomId);
-//     }
-//     const loadPromise = (async () => {
-//         await ensureRoom(roomId);
-//         const { nodes, connections } = await getRoomState(roomId);
-//         const room = { clients: new Set(), nodes, connections };
-//         roomsCache.set(roomId, room);
-//         return room;
-//     })().finally(() => {
-//         pendingLoads.delete(roomId);
-//     });
-//     pendingLoads.set(roomId, loadPromise);
-//     return loadPromise;
-// }l
+const pendingLoads = new Map();
+async function getOrLoadRoom(roomId) {
+
+    if (roomsCache.has(roomId)) {
+        return roomsCache.get(roomId);
+    }
+
+    if (pendingLoads.has(roomId)) {
+        return pendingLoads.get(roomId);
+    }
+
+    const loadPromise = (async () => {
+        await ensureRoom(roomId);
+        const { nodes, connections } = await getRoomState(roomId);
+        const room = { clients: new Set(), nodes, connections };
+        roomsCache.set(roomId, room);
+        return room;
+    })().finally(() => {
+        pendingLoads.delete(roomId);
+    });
+    
+    pendingLoads.set(roomId, loadPromise);
+    return loadPromise;
+}
+
+
+
+
 
 // Turn web-socket on when any user joins
 // socket: one specific device, user or connection (on, send, w)
@@ -53,19 +61,8 @@ wss.on('connection', async (socket, request) => {
 
     // Add sockets to rooms and share the empty arrays or
     //  existing data in the room with new sockets
-    if (!roomsCache.has(roomId)) {
-
-        await ensureRoom(roomId)
-        const { nodes, connections } = await getRoomState(roomId);
-
-        roomsCache.set(roomId, {
-            clients: new Set(),
-            nodes: nodes,
-            connections: connections
-    })
-    }
-
-    const room = roomsCache.get(roomId)
+    const room = await getOrLoadRoom(roomId);
+    if (socket.readyState !== 1) return;
     room.clients.add(socket);
 
     // sending a message fromm the server to  the new socket/user
