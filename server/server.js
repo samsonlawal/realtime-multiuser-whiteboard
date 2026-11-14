@@ -17,7 +17,6 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server })
 const roomsCache = new Map();
 
-// TODO (Post-MVP): Deduplicate concurrent room loads from Neon so two sockets
 // joining at the same millisecond never overwrite roomsCache with separate client Sets.
 const pendingLoads = new Map();
 async function getOrLoadRoom(roomId) {
