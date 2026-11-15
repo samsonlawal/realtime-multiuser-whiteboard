@@ -25,26 +25,41 @@ interface WhiteboardViewProps {
 
 export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
   const [activeTool, setActiveTool] = useState<ToolType>('select');
-  const [selectedColor, setSelectedColor] = useState('#f4f4f5');
-  const [strokeWidth, setStrokeWidth] = useState(2);
-  const [strokeStyle, setStrokeStyle] = useState('solid');
-  const [fill, setFill] = useState('transparent');
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [nodes, setNodes] = useState<NodeEntity[]>([]);
   const [connections, setConnections] = useState<ConnectionEntity[]>([]);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
 
   const navigate = useNavigate()
   const { roomId } = useParams<{ roomId: string }>();
 
   const { isConnected, peers, currentUser, broadcastCursor, broadcastEvent } = useMultiplayer(roomId, setNodes, setConnections);
 
-
+  const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) ?? null : null;
+  const selectedConnection = selectedEdgeId ? connections.find((c) => c.id === selectedEdgeId) ?? null : null;
 
   function handleSelectNode(nodeId: string | null) {
-    setSelectedNodeId(nodeId);
-    console.log(connections);
+    setSelectedNodeId(nodeId || null);
+    if (nodeId) {
+      setSelectedEdgeId(null);
+    }
+  }
+
+  function handleSelectEdge(edgeId: string | null) {
+    setSelectedEdgeId(edgeId);
+    if (edgeId) {
+      setSelectedNodeId(null);
+    }
+  }
+
+  function handleUpdateNode(nodeId: string, updates: Partial<NodeEntity>) {
+    setNodes((prev) => prev.map((n) => (n.id === nodeId ? { ...n, ...updates } : n)));
+  }
+
+  function handleUpdateConnection(edgeId: string, updates: Partial<ConnectionEntity>) {
+    setConnections((prev) => prev.map((c) => (c.id === edgeId ? { ...c, ...updates } : c)));
   }
 
   // Delete Node and its connections
@@ -53,17 +68,20 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
     setConnections((prev) =>
       prev.filter((c) => c.fromNodeId !== nodeId && c.toNodeId !== nodeId)
     );
+    if (selectedNodeId === nodeId) {
+      setSelectedNodeId(null);
+    }
 
     broadcastEvent({type: 'node_deleted', nodeId: nodeId})
-
   }
 
   function handleDeleteConnection(edgeId: string) {
     setConnections((prev) => prev.filter((c) => c.id !== edgeId));
+    if (selectedEdgeId === edgeId) {
+      setSelectedEdgeId(null);
+    }
 
     broadcastEvent({type: 'edge_deleted', edgeId: edgeId})
-
-
   }
 
   // Duplicate Node with next Roman numeral and offset position
@@ -90,12 +108,17 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
       icon: sourceNode.icon,
       category: sourceNode.category,
       color: sourceNode.color,
+      fill: sourceNode.fill,
+      strokeWidth: sourceNode.strokeWidth,
+      strokeStyle: sourceNode.strokeStyle,
+      opacity: sourceNode.opacity,
       x: sourceNode.x + 35,
       y: sourceNode.y + 35,
     };
 
     setNodes((prev) => [...prev, newNode]);
     setSelectedNodeId(newNode.id);
+    setSelectedEdgeId(null);
 
     broadcastEvent({type: 'nodes_added', nodes: [newNode] })
   }
@@ -112,17 +135,21 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
         return;
       }
 
-      // 2. Delete selected node on Delete / Backspace
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeId) {
+      // 2. Delete selected node or edge on Delete / Backspace
+      if (e.key === 'Delete' || e.key === 'Backspace') {
         const target = e.target as HTMLElement;
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-        handleDeleteNode(selectedNodeId);
+        if (selectedNodeId) {
+          handleDeleteNode(selectedNodeId);
+        } else if (selectedEdgeId) {
+          handleDeleteConnection(selectedEdgeId);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodeId, nodes]);
+  }, [selectedNodeId, selectedEdgeId, nodes]);
 
   const handleSelectPrimitive = (primitives: ComponentPrimitive[]) => {
     const counts: Record<string, number> = {};
@@ -237,8 +264,13 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
         {/* Left Docked Sidebar (Primitives & Connections) - toggled via CanvasHeader */}
         {isLeftSidebarOpen && (
           <LeftSidebar 
-          nodes={nodes}
-          onSelectPrimitive={handleSelectPrimitive} connections={connections} onDeleteConnection={handleDeleteConnection}  />
+            nodes={nodes}
+            onSelectPrimitive={handleSelectPrimitive}
+            connections={connections}
+            onDeleteConnection={handleDeleteConnection}
+            selectedEdgeId={selectedEdgeId}
+            onSelectEdge={handleSelectEdge}
+          />
         )}
 
         {/* Center Workspace (Canvas + Floating Island Toolbar) */}
@@ -251,22 +283,23 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
           onConnect={handleConnect}
           selectedNodeId={selectedNodeId}
           onSelectNode={handleSelectNode}
+          selectedEdgeId={selectedEdgeId}
+          onSelectEdge={handleSelectEdge}
           onDeleteNode={handleDeleteNode}
           onDuplicateNode={handleDuplicateNode}
           onCursorMove={broadcastCursor}
           peers={peers}
         />
 
-        {/* Right Docked Sidebar (Properties & Styling) */}
+        {/* Right Floating Inspector (Properties & Styling + QuickKeysToggle) */}
         <PropertiesPanel
-          selectedColor={selectedColor}
-          onSelectColor={setSelectedColor}
-          strokeWidth={strokeWidth}
-          onSelectStrokeWidth={setStrokeWidth}
-          strokeStyle={strokeStyle}
-          onSelectStrokeStyle={setStrokeStyle}
-          fill={fill}
-          onSelectFill={setFill}
+          selectedNode={selectedNode}
+          selectedConnection={selectedConnection}
+          onUpdateNode={handleUpdateNode}
+          onUpdateConnection={handleUpdateConnection}
+          onDuplicateNode={handleDuplicateNode}
+          onDeleteNode={handleDeleteNode}
+          onDeleteConnection={handleDeleteConnection}
         />
       </div>
     </div>

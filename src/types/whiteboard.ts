@@ -41,6 +41,10 @@ export interface NodeEntity {
   category: string;
   icon?: string;
   color?: string;    // Brand accent color inherited from primitive or customized
+  fill?: 'transparent' | 'subtle' | 'solid';
+  strokeWidth?: number;
+  strokeStyle?: 'solid' | 'dashed' | 'dotted';
+  opacity?: number;  // 0 to 100 (defaults to 100)
   x: number;
   y: number;
   width?: number;   // default 180
@@ -55,8 +59,10 @@ export interface ConnectionEntity {
   toNodeId: string;
   toPort: PortDirection;
   color?: string;
+  strokeWidth?: number;
   style?: 'solid' | 'dashed' | 'dotted';
   direction?: 'unidirectional' | 'bidirectional';
+  opacity?: number;  // 0 to 100 (defaults to 100)
   label?: string;
 }
 

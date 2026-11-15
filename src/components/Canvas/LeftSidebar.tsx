@@ -59,13 +59,13 @@ interface ArchItemProps {
 
 function ArchItem({ arch, isOpen, onToggle, onLoad }: ArchItemProps) {
   return (
-    <div className="border border-subtle rounded-lg overflow-hidden">
+    <div className="border border-subtle/80 rounded-lg overflow-hidden">
       {/* Clickable Header */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-3 py-2.5 bg-card hover:bg-card-hover cursor-pointer transition-colors text-left"
+        className="group w-full flex items-center justify-between px-2.5 py-2 bg-card/70 hover:bg-card-hover cursor-pointer transition-colors text-left"
       >
-        <span className="text-xs font-medium text-heading truncate pr-2">{arch.name}</span>
+        <span className="text-[11px] font-medium text-heading/80 group-hover:text-heading truncate pr-2 transition-colors">{arch.name}</span>
         <svg
           xmlns="http://www.w3.org/2000/svg" width="11" height="11"
           viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -78,15 +78,15 @@ function ArchItem({ arch, isOpen, onToggle, onLoad }: ArchItemProps) {
 
       {/* Expandable Details Drawer */}
       {isOpen && (
-        <div className="px-3 pt-2 pb-3 bg-panel border-t border-subtle space-y-2.5">
-          <p className="text-[11px] text-muted leading-relaxed">{arch.description}</p>
+        <div className="px-2.5 pt-2 pb-2.5 bg-panel border-t border-subtle/80 space-y-2">
+          <p className="text-[10.5px] text-dim leading-relaxed">{arch.description}</p>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-dim">Updated {arch.updatedAt}</span>
+            <span className="text-[10px] text-dim/80">Updated {arch.updatedAt}</span>
             <div className="flex items-center gap-1.5">
               {/* Load onto canvas */}
               <button
                 onClick={() => onLoad(arch)}
-                className="text-[11px] px-2.5 py-1 rounded-md bg-brand/10 text-brand border border-brand/20 hover:bg-brand/20 cursor-pointer transition-colors font-medium"
+                className="text-[10.5px] px-2 py-0.5 rounded-md bg-brand/10 text-brand border border-brand/20 hover:bg-brand/20 cursor-pointer transition-colors font-medium"
               >
                 Load
               </button>
@@ -95,7 +95,7 @@ function ArchItem({ arch, isOpen, onToggle, onLoad }: ArchItemProps) {
                 className="p-1 rounded-md text-dim hover:text-red-400 hover:bg-red-400/10 cursor-pointer transition-colors"
                 title="Delete"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                 </svg>
               </button>
@@ -112,6 +112,8 @@ interface LeftSidebarProps {
   connections?: ConnectionEntity[];
   nodes: NodeEntity[];
   onDeleteConnection: (edgeId: string) => void;
+  selectedEdgeId?: string | null;
+  onSelectEdge?: (edgeId: string | null) => void;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -123,7 +125,14 @@ interface LeftSidebarProps {
         - "Saved Architectures": Persisted board snapshots
      3. Bottom Footer: Subtle ghosted "Reeley" wordmark
 ───────────────────────────────────────────────────────────── */
-export default function LeftSidebar({ onSelectPrimitive = () => {}, connections = [], nodes = [], onDeleteConnection = () => {} } : LeftSidebarProps) {
+export default function LeftSidebar({
+  onSelectPrimitive = () => {},
+  connections = [],
+  nodes = [],
+  onDeleteConnection = () => {},
+  selectedEdgeId = null,
+  onSelectEdge = () => {},
+}: LeftSidebarProps) {
   
   // Modal visibility state
   const [showPicker, setShowPicker] = useState(false);
@@ -158,14 +167,13 @@ export default function LeftSidebar({ onSelectPrimitive = () => {}, connections 
           </button>
         </div>
 
-        {/* ── 2 & 3. Middle Body: Flexible container holding both sections ── */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        {/* ── 2 & 3. Middle Body: Bottom-anchored container holding both sections ── */}
+        <div className="flex-1 flex flex-col justify-end overflow-hidden min-h-0">
 
           {/* ── CONNECTIONS SECTION (Live from canvas arrows) ──
-              style={{ flex: isOpen ? '1 1 auto' : '0 0 auto' }} ensures:
-              - When open: takes available height and scrolls its contents
-              - When closed: shrinks down to just the header height */}
-          <div className="flex flex-col border-b border-subtle" style={{ flex: connectionsOpen ? '1 1 auto' : '0 0 auto' }}>
+              flex: '0 1 auto' + min-h-0 keeps collapsed/short sections anchored to the
+              bottom while still shrinking and scrolling cleanly if lists overflow. */}
+          <div className="flex flex-col border-t border-b border-subtle min-h-0 overflow-hidden" style={{ flex: '0 1 auto' }}>
             <SectionHeader
               label="Connections"
               count={connections.length}
@@ -173,7 +181,7 @@ export default function LeftSidebar({ onSelectPrimitive = () => {}, connections 
               onToggle={() => setConnectionsOpen((o) => !o)}
             />
             {connectionsOpen && (
-              <div className="overflow-y-auto flex-1 px-3 pb-3 pt-1">
+              <div className="overflow-y-auto flex-1 min-h-0 px-3 pb-3 pt-1">
                 {connections.length === 0 ? (
                   
                   /* Empty state: shown when no arrows exist on canvas yet */
@@ -193,31 +201,46 @@ export default function LeftSidebar({ onSelectPrimitive = () => {}, connections 
                     </div>
                   </div>
                 ) : (
-                  /* Populated list: one row per arrow (Source -> Target) */
-                  <div className="space-y-1 mt-1">
+                  /* Populated list: compact borderless edge rows (distinct from Saved Architecture cards) */
+                  <div className="space-y-0.5 mt-1">
                     {connections.map((conn, i) => { 
 
                       const fromNode = nodes.find(n => n.id === conn.fromNodeId);
                       const toNode   = nodes.find(n => n.id === conn.toNodeId);
+                      const dotColor = conn.color || fromNode?.color || 'var(--color-bezier)';
                       
+                      const isSelected = selectedEdgeId === conn.id;
+
                       return (
                         <div
                           key={conn.id || i}
-                          className="group flex items-center gap-2 px-2.5 py-2 rounded-lg bg-card hover:bg-card-hover border border-subtle text-xs transition-colors"
+                          onClick={() => onSelectEdge(isSelected ? null : conn.id)}
+                          className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] transition-colors cursor-pointer ${
+                            isSelected
+                              ? 'bg-brand/15 ring-1 ring-brand/40 text-heading'
+                              : 'hover:bg-card/80'
+                          }`}
                         >  
-                        <span className="text-heading font-medium truncate">{fromNode?.label || 'Unknown'}</span>
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0 opacity-75"
+                          style={{ backgroundColor: dotColor }}
+                        />
+                        <span className="text-muted group-hover:text-heading font-normal truncate transition-colors">{fromNode?.label || 'Unknown'}</span>
 
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-dim shrink-0">
-                          <path d="M5 12h14m-7-7 7 7-7 7" />
+                        <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-dim/70 shrink-0">
+                          {conn.direction === 'bidirectional' ? (
+                            <path d="M8 7l-5 5 5 5M16 7l5 5-5 5M3 12h18" />
+                          ) : (
+                            <path d="M5 12h14m-7-7 7 7-7 7" />
+                          )}
                         </svg>
 
-                        <span className="text-heading font-medium truncate">{toNode?.label || 'Unknown'}</span>
-                        <button onClick={() => onDeleteConnection(conn.id)} 
-                          className="ml-auto opacity-0 group-hover:opacity-100 p-1 text-dim hover:text-red-700 hover:bg-red-400/10 rounded transition-all shrink-0 cursor-pointer"
-    title="Delete connection"
-                          
+                        <span className="text-muted group-hover:text-heading font-normal truncate transition-colors">{toNode?.label || 'Unknown'}</span>
+                        <button onClick={(e) => { e.stopPropagation(); onDeleteConnection(conn.id); }} 
+                          className="ml-auto opacity-0 group-hover:opacity-100 p-0.5 text-dim hover:text-red-400 hover:bg-red-400/10 rounded transition-all shrink-0 cursor-pointer"
+                          title="Delete connection"
                           >
-                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                             </svg>
                         </button>
@@ -230,7 +253,7 @@ export default function LeftSidebar({ onSelectPrimitive = () => {}, connections 
           </div>
 
           {/* ── SAVED ARCHITECTURES SECTION (Named snapshots) ── */}
-          <div className="flex flex-col" style={{ flex: savedOpen ? '1 1 auto' : '0 0 auto' }}>
+          <div className="flex flex-col min-h-0 overflow-hidden" style={{ flex: '0 1 auto' }}>
             <SectionHeader
               label="Saved Architectures"
               count={SAVED_ARCHITECTURES.length}
@@ -238,7 +261,7 @@ export default function LeftSidebar({ onSelectPrimitive = () => {}, connections 
               onToggle={() => setSavedOpen((o) => !o)}
             />
             {savedOpen && (
-              <div className="overflow-y-auto flex-1 p-3 space-y-2">
+              <div className="overflow-y-auto flex-1 min-h-0 p-3 space-y-2">
                 {SAVED_ARCHITECTURES.map((arch) => (
                   <ArchItem
                     key={arch.id}
