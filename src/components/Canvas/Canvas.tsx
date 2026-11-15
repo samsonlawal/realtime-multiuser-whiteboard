@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import FloatingToolbar from '../Toolbar/FloatingToolbar';
 import CanvasNode from './CanvasNode';
-import { renderAllConnections, getAnchorPoint, drawBezierWire  } from '../../utils/geometry';
+import { renderAllConnections, getAnchorPoint, drawBezierWire, findConnectionAtPoint } from '../../utils/geometry';
 import type { DraftConnection } from '../../types/whiteboard';
 import type { NodeEntity, ToolType, ConnectionEntity, PortDirection, ComponentPrimitive  } from '../../types/whiteboard';
 import Cursor from '../UserPresence/Cursor';
@@ -42,6 +42,8 @@ interface CanvasProps {
   onConnect?: (fromId: string, fromPort: PortDirection, toId: string, toPort: PortDirection) => void;
   selectedNodeId?: string | null;
   onSelectNode?: (nodeId: string) => void;
+  selectedEdgeId?: string | null;
+  onSelectEdge?: (edgeId: string | null) => void;
   onDeleteNode?: (nodeId: string) => void;
   onDuplicateNode?: (nodeId: string) => void;
   onCursorMove?: (x: number, y: number) => void;
@@ -57,6 +59,8 @@ export default function Canvas({
   onConnect = () => {},
   selectedNodeId = null,
   onSelectNode = () => {},
+  selectedEdgeId = null,
+  onSelectEdge = () => {},
   onDeleteNode = () => {},
   onDuplicateNode = () => {},
   onCursorMove = () => {},
@@ -197,9 +201,9 @@ cameraRef.current = { zoom, pan };
     ctx.save();
     ctx.translate(pan.x, pan.y);
     ctx.scale(scale, scale);
-    renderAllConnections(ctx, connections, nodes);
+    renderAllConnections(ctx, connections, nodes, selectedEdgeId);
     ctx.restore();
-  }, [connections, nodes, pan, scale, dimensions]);
+  }, [connections, nodes, pan, scale, dimensions, selectedEdgeId]);
 
   // Coarse grid cell = 50px at 100% zoom → scales with zoom
   const coarseCell = 50;
@@ -347,7 +351,20 @@ cameraRef.current = { zoom, pan };
       onPointerUp={handlePointerUp}
       onClick={(e) => {
         if (e.target === containerRef.current || (e.target as HTMLElement).tagName === 'CANVAS') {
+          const rect = containerRef.current?.getBoundingClientRect();
+          if (rect) {
+            const worldPoint = {
+              x: (e.clientX - rect.left - pan.x) / scale,
+              y: (e.clientY - rect.top - pan.y) / scale,
+            };
+            const hitEdge = findConnectionAtPoint(worldPoint, connections, nodes, 10 / scale);
+            if (hitEdge) {
+              onSelectEdge?.(hitEdge.id);
+              return;
+            }
+          }
           onSelectNode?.('');
+          onSelectEdge?.(null);
         }
       }}
       className={`w-full h-full relative bg-canvas overflow-hidden select-none ${

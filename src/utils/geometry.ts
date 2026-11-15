@@ -65,29 +65,54 @@ export function drawBezierWire(
   options: {
     color?: string;
     lineWidth?: number;
+    style?: 'solid' | 'dashed' | 'dotted';
     isDashed?: boolean;
+    direction?: 'unidirectional' | 'bidirectional';
+    opacity?: number;
+    isSelected?: boolean;
     showArrow?: boolean;
   } = {}
 ): void {
   const {
     color = '#3b82f6', // default brand blue
     lineWidth = 2,
+    style,
     isDashed = false,
+    direction = 'unidirectional',
+    opacity = 100,
+    isSelected = false,
     showArrow = true,
   } = options;
 
   const { cp1, cp2 } = getBezierControlPoints(start, end, fromPort, toPort);
+  const resolvedStyle = style || (isDashed ? 'dashed' : 'solid');
 
   ctx.save();
+  ctx.globalAlpha = Math.max(0.05, Math.min(1, opacity / 100));
   ctx.strokeStyle = color;
   ctx.fillStyle = color;
   ctx.lineWidth = lineWidth;
   ctx.lineCap = 'round';
 
-  if (isDashed) {
-    ctx.setLineDash([6, 6]);
+  if (resolvedStyle === 'dashed') {
+    ctx.setLineDash([8, 6]);
+  } else if (resolvedStyle === 'dotted') {
+    ctx.setLineDash([2, 6]);
   } else {
     ctx.setLineDash([]);
+  }
+
+  // Highlight selected wire with a subtle outer glow
+  if (isSelected) {
+    ctx.save();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = `${color}45`;
+    ctx.lineWidth = lineWidth + 6;
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
+    ctx.stroke();
+    ctx.restore();
   }
 
   // Draw the smooth cubic bezier curve
@@ -96,9 +121,13 @@ export function drawBezierWire(
   ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
   ctx.stroke();
 
-  // Draw arrowhead at the destination port
+  // Draw arrowhead(s)
   if (showArrow) {
-    drawArrowhead(ctx, cp2, end, lineWidth * 4);
+    const headSize = Math.max(7, lineWidth * 3.2);
+    drawArrowhead(ctx, cp2, end, headSize);
+    if (direction === 'bidirectional') {
+      drawArrowhead(ctx, cp1, start, headSize);
+    }
   }
 
   ctx.restore();
@@ -135,7 +164,8 @@ function drawArrowhead(
 export function renderAllConnections(
   ctx: CanvasRenderingContext2D,
   connections: ConnectionEntity[],
-  nodes: NodeEntity[]
+  nodes: NodeEntity[],
+  selectedEdgeId: string | null = null
 ): void {
   // Map node IDs to nodes for O(1) lookup
   const nodeMap = new Map<string, NodeEntity>();
@@ -155,8 +185,58 @@ export function renderAllConnections(
 
     drawBezierWire(ctx, start, end, conn.fromPort, conn.toPort, {
       color: conn.color || '#3b82f6',
-      isDashed: conn.style === 'dashed',
+      lineWidth: conn.strokeWidth || 2,
+      style: conn.style || 'solid',
+      direction: conn.direction || 'unidirectional',
+      opacity: conn.opacity ?? 100,
+      isSelected: conn.id === selectedEdgeId,
     });
   }
+}
+
+/**
+ * Finds the first connection whose Bezier curve passes within `threshold`
+ * world pixels of `point` by sampling points along each curve.
+ */
+export function findConnectionAtPoint(
+  point: Point,
+  connections: ConnectionEntity[],
+  nodes: NodeEntity[],
+  threshold: number = 10
+): ConnectionEntity | null {
+  const nodeMap = new Map<string, NodeEntity>();
+  for (const node of nodes) {
+    nodeMap.set(node.id, node);
+  }
+
+  const thresholdSq = threshold * threshold;
+  const steps = 20;
+
+  for (let i = connections.length - 1; i >= 0; i--) {
+    const conn = connections[i];
+    const fromNode = nodeMap.get(conn.fromNodeId);
+    const toNode = nodeMap.get(conn.toNodeId);
+    if (!fromNode || !toNode) continue;
+
+    const p0 = getAnchorPoint(fromNode, conn.fromPort);
+    const p3 = getAnchorPoint(toNode, conn.toPort);
+    const { cp1: p1, cp2: p2 } = getBezierControlPoints(p0, p3, conn.fromPort, conn.toPort);
+
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      const u = 1 - t;
+      // Cubic Bezier B(t) = u^3*P0 + 3*u^2*t*P1 + 3*u*t^2*P2 + t^3*P3
+      const bx = u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x;
+      const by = u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y;
+
+      const dx = point.x - bx;
+      const dy = point.y - by;
+      if (dx * dx + dy * dy <= thresholdSq) {
+        return conn;
+      }
+    }
+  }
+
+  return null;
 }
 

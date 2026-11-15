@@ -35,6 +35,12 @@ export default function CanvasNode({
   const width = node.width || 180;
   const height = node.height || 56;
   const accentColor = node.color || '#3b82f6';
+  const fillBg =
+    node.fill === 'subtle'
+      ? `${accentColor}14`
+      : node.fill === 'solid'
+        ? `${accentColor}30`
+        : undefined;
 
   const [isDragging, setIsDragging] = useState(false)
   const dragStartRef = useRef({startX: 0, startY: 0, initialNodeX: 0, initialNodeY: 0})
@@ -122,7 +128,11 @@ export default function CanvasNode({
         top: `${node.y}px`,
         width: `${width}px`,
         height: `${height}px`,
+        backgroundColor: fillBg,
         borderColor: isCardActive ? accentColor : undefined,
+        borderWidth: node.strokeWidth !== undefined ? `${node.strokeWidth}px` : undefined,
+        borderStyle: node.strokeStyle || undefined,
+        opacity: node.opacity !== undefined ? node.opacity / 100 : undefined,
         boxShadow: isCardActive ? `0 0 0 1px ${accentColor}, 0 4px 14px ${accentColor}25` : undefined,
       }}
     >
