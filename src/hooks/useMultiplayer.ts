@@ -9,6 +9,11 @@ export interface RemotePeer {
   cursor: { x: number; y: number } | null;
 }
 
+type IncomingSocketEvents =
+    | MultiplayerEvent
+    | { type: 'cursor_move'; userId: string; name?: string; color?: string; x: number; y: number }
+    | { type: 'user_left'; userId: string };
+
 export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispatch<React.SetStateAction<NodeEntity[]>>,
   setConnections: React.Dispatch<React.SetStateAction<ConnectionEntity[]>>) {
     const [peers, setPeers] = useState<Record<string, RemotePeer>>({});
@@ -22,6 +27,7 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
         { color: '#f59e0b', name: 'Fox' },
         { color: '#f43f5e', name: 'Hawk' },
         { color: '#06b6d4', name: 'Otter' },
+
     ];
 
     const [myUserId] = useState(() => {
@@ -48,8 +54,6 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
     useEffect(() => {
         if (!roomId) return;
 
-
-
         const wsBaseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
         const socket = new WebSocket(`${wsBaseUrl}?room=${roomId}&userId=${myUserId}`);
         socketRef.current = socket;
@@ -63,7 +67,7 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
         // Listenting to evetns from room members(message) from the server
         socket.onmessage = (event) => {
             try{
-                const data = JSON.parse(event.data)
+                const data = JSON.parse(event.data) as IncomingSocketEvents
 
                 switch(data.type) {
                     case "cursor_move": 
@@ -128,7 +132,21 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
                             setNodes(data.nodes)
                             setConnections(data.connections)
                             break;
-              }
+
+                        case('node_updated'):
+                            setNodes((prevNodes) =>
+                                prevNodes.map((prevNode) => (
+                                    prevNode.id === data.nodeId ? {...prevNode, ...data.updates} : prevNode
+                            )))
+                        break;
+
+                        case('edge_updated'):
+                            setConnections((prevConnections) =>
+                                prevConnections.map((prevConnection) => (
+                                    prevConnection.id === data.edgeId ? {...prevConnection, ...data.updates} : prevConnection
+                            )))
+                        break;
+            }
 
 
             } catch (err) {

@@ -56,10 +56,16 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
 
   function handleUpdateNode(nodeId: string, updates: Partial<NodeEntity>) {
     setNodes((prev) => prev.map((n) => (n.id === nodeId ? { ...n, ...updates } : n)));
+
+    broadcastEvent({type: 'node_updated', nodeId, updates})
+
   }
 
   function handleUpdateConnection(edgeId: string, updates: Partial<ConnectionEntity>) {
     setConnections((prev) => prev.map((c) => (c.id === edgeId ? { ...c, ...updates } : c)));
+
+    broadcastEvent({type: 'edge_updated', edgeId, updates})
+
   }
 
   // Delete Node and its connections
@@ -209,7 +215,6 @@ function filterAndGroupComponents(items: ComponentPrimitive[], query: string) {
 function handleUpdateNodePosition(id: string, newX: number, newY: number) {
 
   setNodes((prevNodes) => 
-    // How do you check if n.id === id, and update its x and y?
   prevNodes.map((prevNode) => (
     prevNode.id === id ? {...prevNode, x: newX, y: newY  } : prevNode)))
 
@@ -245,8 +250,8 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-canvas text-heading select-none font-poppins">
       {/* 1. Top Navigation Bar */}
       <CanvasHeader
-        title="Distributed System Arch"
-        roomName="sys-design-prod"
+        // title="Distributed System Arch"
+        // roomName="sys-design-prod"
         peers={[currentUser, ...Object.values(peers)]}
         isLeftSidebarOpen={isLeftSidebarOpen}
         onToggleLeftSidebar={() => setIsLeftSidebarOpen((prev) => !prev)}
