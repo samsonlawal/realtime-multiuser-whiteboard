@@ -6,7 +6,9 @@ export type MultiplayerEvent =
   | { type: 'node_deleted'; nodeId: string }
   | { type: 'edge_added'; connection: ConnectionEntity }
   | { type: 'edge_deleted'; edgeId: string }
-  | { type: 'init_room', nodes: NodeEntity[], connections: ConnectionEntity[]  };
+  | { type: 'init_room', nodes: NodeEntity[], connections: ConnectionEntity[]  }
+  | { type: "node_updated", nodeId: string, updates: Partial<NodeEntity> }
+  | { type: "edge_updated", edgeId: string, updates: Partial<ConnectionEntity> };
 
 export type PortDirection = 'top' | 'right' | 'bottom' | 'left';
 

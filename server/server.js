@@ -1,6 +1,8 @@
 import http from 'http'
 import { WebSocketServer } from 'ws'
-import { ensureRoom, getRoomState, addNodes, moveNode, deleteNode, addConnection, deleteConnection } from './roomQueries.js'
+import { ensureRoom, getRoomState, addNodes, moveNode, updateNode, deleteNode, addConnection, updateConnection, deleteConnection } from './roomQueries.js'
+
+
 
 // Create Server
 const server = http.createServer((req, res) => {
@@ -13,9 +15,15 @@ const server = http.createServer((req, res) => {
     res.end('Not Found');
 })
 
+
+
+
 // Create web-sockets
 const wss = new WebSocketServer({ server })
 const roomsCache = new Map();
+
+
+
 
 // joining at the same millisecond never overwrite roomsCache with separate client Sets.
 const pendingLoads = new Map();
@@ -43,8 +51,15 @@ async function getOrLoadRoom(roomId) {
     return loadPromise;
 }
 
+const ALLOWED_NODE_FIELDS = ['color', 'fill', 'strokeWidth', 'strokeStyle', 'opacity', 'label', 'x', 'y'];
+const ALLOWED_EDGE_FIELDS = ['color', 'strokeWidth', 'style', 'direction', 'opacity', 'label'];
 
-
+function applyAllowedUpdates(target, updates, allowedFields) {
+    if(!target || !updates || typeof updates !== 'object') return;
+    allowedFields.forEach((key) => {
+        if(updates[key] !== undefined) target[key] = updates[key];
+    })
+}
 
 
 // Turn web-socket on when any user joins
@@ -100,12 +115,22 @@ wss.on('connection', async (socket, request) => {
                         break;
                     }
 
-                    case 'node_deleted':
+                    case 'node_updated': {
+                        const node = room.nodes.find((n) => n.id === parsed.nodeId);
+                        if (node) {
+                            applyAllowedUpdates(node, parsed.updates, ALLOWED_NODE_FIELDS);
+                            updateNode(node).catch(console.error);
+                        }
+                        break;
+                    }
+
+                    case 'node_deleted': {
                         room.nodes = room.nodes.filter((n) => n.id !== parsed.nodeId)
                         room.connections = room.connections.filter(
                             (c) => c.fromNodeId !== parsed.nodeId && c.toNodeId !== parsed.nodeId)
                         deleteNode(parsed.nodeId).catch(console.error);
                         break;
+                    }
 
                     case 'edge_added':
                         room.connections.push(parsed.connection)
@@ -116,7 +141,16 @@ wss.on('connection', async (socket, request) => {
                         room.connections = room.connections.filter((c) => c.id !== parsed.edgeId)
                         deleteConnection(parsed.edgeId).catch(console.error);
                         break;
-              }
+                        
+                    case 'edge_updated': {
+                        const conn = room.connections.find((c) => c.id === parsed.edgeId);
+                        if (conn) {
+                            applyAllowedUpdates(conn, parsed.updates, ALLOWED_EDGE_FIELDS);
+                            updateConnection(conn).catch(console.error);
+                        }
+                        break;
+                    }
+            }
 
         } catch(err) {
             console.log(err)
