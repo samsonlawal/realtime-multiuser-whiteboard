@@ -15,15 +15,9 @@ const server = http.createServer((req, res) => {
     res.end('Not Found');
 })
 
-
-
-
 // Create web-sockets
 const wss = new WebSocketServer({ server })
 const roomsCache = new Map();
-
-
-
 
 // joining at the same millisecond never overwrite roomsCache with separate client Sets.
 const pendingLoads = new Map();
