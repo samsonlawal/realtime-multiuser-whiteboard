@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import CanvasHeader from './CanvasHeader';
 import LeftSidebar from './LeftSidebar';
 import Canvas from './Canvas';
 import PropertiesPanel from '../UserPresence/PropertiesPanel';
-import type { NodeEntity, ConnectionEntity, PortDirection, ComponentPrimitive, ToolType  } from '../../types/whiteboard';
+import type { NodeEntity, ConnectionEntity, PortDirection, ComponentPrimitive, ToolType, MultiplayerEvent  } from '../../types/whiteboard';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMultiplayer } from './../../hooks/useMultiplayer';
 
@@ -22,6 +22,11 @@ interface WhiteboardViewProps {
   onBackToHome?: () => void;
 }
 
+interface HistoryEntry {
+  undo: MultiplayerEvent[];
+  redo: MultiplayerEvent[]
+}
+
 
 export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
   const [activeTool, setActiveTool] = useState<ToolType>('select');
@@ -34,6 +39,10 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
 
   const navigate = useNavigate()
   const { roomId } = useParams<{ roomId: string }>();
+
+  const undoStackRef = useRef<HistoryEntry[]>([])
+  const redoStackRef = useRef<HistoryEntry[]>([])
+
 
   const { isConnected, peers, currentUser, broadcastCursor, broadcastEvent } = useMultiplayer(roomId, setNodes, setConnections);
 
@@ -188,14 +197,64 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
 
     setNodes((prev) => [...prev, ...newNodes]);
     broadcastEvent({ type: 'nodes_added', nodes: newNodes });
+
+undoStackRef.current.push({
+  undo: newNodes.map((n) => ({type: "node_deleted", nodeId: n.id})),
+  redo: [{type: 'nodes_added', nodes: newNodes}]
+})
+
+redoStackRef.current = [];
+
   };
 
   const handleUndo = () => {
+    // console.log(undoStackRef.current)
     console.log('Undo triggered');
+
+    let popoff = undoStackRef.current.pop()
+    console.log(popoff)
+
+    if(!popoff) return;
+    redoStackRef.current.push(popoff)
+
+    console.log('Undo List:', undoStackRef.current);
+    console.log('Redo List:', redoStackRef.current);
+
+    popoff.undo.forEach((event) => {
+      if(event.type === 'node_deleted') {
+        setNodes((prev) => prev.filter((n) => n.id !== event.nodeId));
+        
+      } 
+
+    broadcastEvent(event)
+    
+    })
+
+    // undoStackRef.current.pop()
   };
 
   const handleRedo = () => {
     console.log('Redo triggered');
+
+      let popoff = redoStackRef.current.pop()
+    console.log(popoff)
+
+    if(!popoff) return;
+    undoStackRef.current.push(popoff)
+
+    console.log('Undo List:', undoStackRef.current);
+    console.log('Redo List:', redoStackRef.current);
+
+        popoff.redo.forEach((event) => {
+      if(event.type === 'nodes_added') {
+        setNodes((prev) => [...prev, ...event.nodes]);
+        
+      } 
+
+    broadcastEvent(event)
+    
+    })
+
   };
 
   const handleExport = () => {
@@ -240,6 +299,10 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
     broadcastEvent({type: 'edge_added', connection: newConnection })
 
   };
+
+
+
+
 
 
 

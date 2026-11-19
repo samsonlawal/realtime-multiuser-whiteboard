@@ -68,6 +68,7 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
         socket.onmessage = (event) => {
             try{
                 const data = JSON.parse(event.data) as IncomingSocketEvents
+                console.log(data)
 
                 switch(data.type) {
                     case "cursor_move": 
