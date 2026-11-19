@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import CanvasHeader from './CanvasHeader';
 import LeftSidebar from './LeftSidebar';
 import Canvas from './Canvas';
+import ShareModal from './ShareModal';
 import PropertiesPanel from '../UserPresence/PropertiesPanel';
 import type { NodeEntity, ConnectionEntity, PortDirection, ComponentPrimitive, ToolType, MultiplayerEvent  } from '../../types/whiteboard';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -31,6 +32,7 @@ interface HistoryEntry {
 export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
   const [activeTool, setActiveTool] = useState<ToolType>('select');
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [nodes, setNodes] = useState<NodeEntity[]>([]);
   const [connections, setConnections] = useState<ConnectionEntity[]>([]);
 
@@ -48,6 +50,8 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
 
   const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) ?? null : null;
   const selectedConnection = selectedEdgeId ? connections.find((c) => c.id === selectedEdgeId) ?? null : null;
+
+
 
   function handleSelectNode(nodeId: string | null) {
     setSelectedNodeId(nodeId || null);
@@ -242,10 +246,7 @@ redoStackRef.current = [];
     if(!popoff) return;
     undoStackRef.current.push(popoff)
 
-    console.log('Undo List:', undoStackRef.current);
-    console.log('Redo List:', redoStackRef.current);
-
-        popoff.redo.forEach((event) => {
+    popoff.redo.forEach((event) => {
       if(event.type === 'nodes_added') {
         setNodes((prev) => [...prev, ...event.nodes]);
         
@@ -262,8 +263,7 @@ redoStackRef.current = [];
   };
 
   const handleShare = () => {
-    navigator.clipboard?.writeText(window.location.href);
-    alert('Room link copied to clipboard!');
+    setIsShareModalOpen(true);
   };
 
 
@@ -369,6 +369,14 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
           onDeleteNode={handleDeleteNode}
           onDeleteConnection={handleDeleteConnection}
         />
+
+        {isShareModalOpen && (
+          <ShareModal
+            roomId={roomId}
+            peers={[currentUser, ...Object.values(peers)]}
+            onClose={() => setIsShareModalOpen(false)}
+          />
+        )}
       </div>
     </div>
     </div>
