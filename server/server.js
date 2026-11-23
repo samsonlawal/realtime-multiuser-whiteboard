@@ -124,7 +124,11 @@ wss.on('connection', async (socket, request) => {
                         if(node) {
                             node.x = parsed.x
                             node.y = parsed.y
-                            moveNode(parsed.id, parsed.x, parsed.y).catch(console.error);
+
+                            console.log(room)
+                            scheduleSave(room, `node:${node.id}`, () =>
+                                moveNode(parsed.id, parsed.x, parsed.y).catch(console.error)
+                            );
                         }
                         break;
                     }
@@ -133,12 +137,15 @@ wss.on('connection', async (socket, request) => {
                         const node = room.nodes.find((n) => n.id === parsed.nodeId);
                         if (node) {
                             applyAllowedUpdates(node, parsed.updates, ALLOWED_NODE_FIELDS);
-                            updateNode(node).catch(console.error);
+                            scheduleSave(room, `node:${node.id}`, () =>
+                                updateNode(node).catch(console.error)
+                            );
                         }
                         break;
                     }
 
                     case 'node_deleted': {
+                        cancelSave(room, `node:${parsed.nodeId}`);
                         room.nodes = room.nodes.filter((n) => n.id !== parsed.nodeId)
                         room.connections = room.connections.filter(
                             (c) => c.fromNodeId !== parsed.nodeId && c.toNodeId !== parsed.nodeId)
@@ -152,6 +159,7 @@ wss.on('connection', async (socket, request) => {
                         break;
 
                     case 'edge_deleted':
+                        cancelSave(room, `edge:${parsed.edgeId}`);
                         room.connections = room.connections.filter((c) => c.id !== parsed.edgeId)
                         deleteConnection(parsed.edgeId).catch(console.error);
                         break;
@@ -160,7 +168,9 @@ wss.on('connection', async (socket, request) => {
                         const conn = room.connections.find((c) => c.id === parsed.edgeId);
                         if (conn) {
                             applyAllowedUpdates(conn, parsed.updates, ALLOWED_EDGE_FIELDS);
-                            updateConnection(conn).catch(console.error);
+                            scheduleSave(room, `edge:${conn.id}`, () =>
+                                updateConnection(conn).catch(console.error)
+                            );
                         }
                         break;
                     }
@@ -195,6 +205,11 @@ wss.on('connection', async (socket, request) => {
     console.log(`User ${userId} left room ${roomId}`);
 
     if (room.clients.size === 0) {
+        for (const { timer, fn } of room.pendingTimers.values()) {
+            clearTimeout(timer);
+            fn();
+        }
+        room.pendingTimers.clear();
         roomsCache.delete(roomId);
     }
     });
