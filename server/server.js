@@ -19,6 +19,7 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server })
 const roomsCache = new Map();
 
+
 // joining at the same millisecond never overwrite roomsCache with separate client Sets.
 const pendingLoads = new Map();
 async function getOrLoadRoom(roomId) {
@@ -34,7 +35,7 @@ async function getOrLoadRoom(roomId) {
     const loadPromise = (async () => {
         await ensureRoom(roomId);
         const { nodes, connections } = await getRoomState(roomId);
-        const room = { clients: new Set(), nodes, connections };
+        const room = { clients: new Set(), nodes, connections, pendingTimers: new Map() };
         roomsCache.set(roomId, room);
         return room;
     })().finally(() => {
@@ -53,6 +54,25 @@ function applyAllowedUpdates(target, updates, allowedFields) {
     allowedFields.forEach((key) => {
         if(updates[key] !== undefined) target[key] = updates[key];
     })
+}
+
+function scheduleSave(room, key, fn, delay = 300) {
+    const existing = room.pendingTimers.get(key);
+    if (existing) clearTimeout(existing.timer);
+    const timer = setTimeout(() => {
+        room.pendingTimers.delete(key);
+        fn();
+    }, delay);
+    room.pendingTimers.set(key, { timer, fn });
+}
+
+function cancelSave(room, key) {
+    const existing = room.pendingTimers.get(key);
+    if(existing) {
+        clearTimeout(existing.timer);
+        room.pendingTimers.delete(key)
+    }
+
 }
 
 

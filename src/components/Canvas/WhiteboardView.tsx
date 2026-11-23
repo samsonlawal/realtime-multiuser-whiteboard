@@ -239,7 +239,7 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodeId, selectedEdgeId, nodes]);
+  }, [selectedNodeId, selectedEdgeId, nodes, connections]);
 
   const handleSelectPrimitive = (primitives: ComponentPrimitive[]) => {
     const counts: Record<string, number> = {};
@@ -346,8 +346,6 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
 
   }
 
-
-
   const handleUndo = () => {
     let popoff = undoStackRef.current.pop()
 
@@ -383,13 +381,42 @@ function filterAndGroupComponents(items: ComponentPrimitive[], query: string) {
 
 }
 
+const lastMoveref = useRef<{id: string; time: number} | null>(null)
+
 function handleUpdateNodePosition(id: string, newX: number, newY: number) {
+
+  const oldNode = nodes.find((n) => n.id === id);
+
+     if (oldNode && (oldNode.x !== newX || oldNode.y !== newY)) {
+      const now = Date.now();
+      
+      if (
+        lastMoveref.current &&
+        lastMoveref.current.id === id &&
+        now - lastMoveref.current.time < 400
+      ) {
+        const lastEntry = undoStackRef.current.pop();
+        if (lastEntry) {
+          pushHistory({
+            undo: lastEntry.undo,
+            redo: [{ type: 'node_moved', id, x: newX, y: newY }],
+          });
+        }
+      } else {
+        pushHistory({
+          undo: [{ type: 'node_moved', id, x: oldNode.x, y: oldNode.y }],
+          redo: [{ type: 'node_moved', id, x: newX, y: newY }],
+        });
+      }
+      lastMoveref.current = { id, time: now };
+    }
 
   setNodes((prevNodes) => 
   prevNodes.map((prevNode) => (
     prevNode.id === id ? {...prevNode, x: newX, y: newY  } : prevNode)))
 
     broadcastEvent({type: 'node_moved', id: id, x:newX, y: newY})
+
 }
 
   // Creates a permanent connection between two card ports
