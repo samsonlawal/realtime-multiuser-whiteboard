@@ -5,108 +5,6 @@ import ComponentPickerModal from './Sidebar/ComponentPickerModal';
 import type { ComponentPrimitive, ConnectionEntity, NodeEntity } from '../../types/whiteboard';
 
 
-/* ─────────────────────────────────────────────────────────────
-   Mock / Placeholder Data
-   - SAVED_ARCHITECTURES: Represents user-saved board snapshots (named, persisted).
-───────────────────────────────────────────────────────────── */
-
-// Pre-saved architecture diagrams (mock data until backend persistence is wired)
-const SAVED_ARCHITECTURES = [
-  {
-    id: '1',
-    name: 'System Architecture v1',
-    description: 'CDN → API Gateway → three microservices → Postgres.',
-    updatedAt: '2h ago',
-  },
-  {
-    id: '2',
-    name: 'Auth Flow & Token Refresh',
-    description: 'Client → Auth service → Redis session → JWT refresh loop.',
-    updatedAt: 'Yesterday',
-  },
-  {
-    id: '3',
-    name: 'Event-Driven Pipeline',
-    description: 'Producer → Kafka → Consumer group → Postgres + dead-letter queue.',
-    updatedAt: '3d ago',
-  },
-];
-
-/* ─────────────────────────────────────────────────────────────
-   Saved Architecture Item (Accordion Card)
-   Renders a single saved architecture snapshot with expandable details.
-   Props:
-     - arch: { id, name, description, updatedAt }
-     - isOpen: boolean — whether this specific card's detail drawer is open
-     - onToggle: function — toggles this card's open state
-     - onLoad: function — loads this architecture onto the canvas
-───────────────────────────────────────────────────────────── */
-
-interface SavedArch {
-  id: string;
-  name: string;
-  description: string;
-  updatedAt: string;
-}
-
-interface ArchItemProps {
-  arch: SavedArch;
-  isOpen: boolean;
-  onToggle: () => void;
-  onLoad: (arch: SavedArch) => void;
-}
-
-
-function ArchItem({ arch, isOpen, onToggle, onLoad }: ArchItemProps) {
-  return (
-    <div className="border border-subtle/80 rounded-lg overflow-hidden">
-      {/* Clickable Header */}
-      <button
-        onClick={onToggle}
-        className="group w-full flex items-center justify-between px-2.5 py-2 bg-card/70 hover:bg-card-hover cursor-pointer transition-colors text-left"
-      >
-        <span className="text-[11px] font-medium text-heading/80 group-hover:text-heading truncate pr-2 transition-colors">{arch.name}</span>
-        <svg
-          xmlns="http://www.w3.org/2000/svg" width="11" height="11"
-          viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-          className={`text-dim shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </button>
-
-      {/* Expandable Details Drawer */}
-      {isOpen && (
-        <div className="px-2.5 pt-2 pb-2.5 bg-panel border-t border-subtle/80 space-y-2">
-          <p className="text-[10.5px] text-dim leading-relaxed">{arch.description}</p>
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-dim/80">Updated {arch.updatedAt}</span>
-            <div className="flex items-center gap-1.5">
-              {/* Load onto canvas */}
-              <button
-                onClick={() => onLoad(arch)}
-                className="text-[10.5px] px-2 py-0.5 rounded-md bg-brand/10 text-brand border border-brand/20 hover:bg-brand/20 cursor-pointer transition-colors font-medium"
-              >
-                Load
-              </button>
-              {/* Delete architecture */}
-              <button
-                className="p-1 rounded-md text-dim hover:text-red-400 hover:bg-red-400/10 cursor-pointer transition-colors"
-                title="Delete"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 interface LeftSidebarProps {
   onSelectPrimitive?: (primitives: ComponentPrimitive[]) => void;
   connections?: ConnectionEntity[];
@@ -140,15 +38,6 @@ export default function LeftSidebar({
   // Accordion open/collapse states for the two sidebar sections
   const [connectionsOpen, setConnectionsOpen] = useState(true);
   const [savedOpen, setSavedOpen] = useState(true);
-
-  // ID of currently expanded saved architecture item (null if none are open)
-  const [openArchId, setOpenArchId] = useState<string | null>(null);
-
-  // Toggles single accordion item open/shut
-  const toggleArch = (id: string) => setOpenArchId((prev) => (prev === id ? null : id));
-
-  // Placeholder handler for loading an architecture snapshot onto the board
-  const handleLoad = (arch: SavedArch) => console.log('Load architecture:', arch.name);
 
   return (
     <>
@@ -256,21 +145,18 @@ export default function LeftSidebar({
           <div className="flex flex-col min-h-0 overflow-hidden" style={{ flex: '0 1 auto' }}>
             <SectionHeader
               label="Saved Architectures"
-              count={SAVED_ARCHITECTURES.length}
               isOpen={savedOpen}
               onToggle={() => setSavedOpen((o) => !o)}
+              count
             />
             {savedOpen && (
-              <div className="overflow-y-auto flex-1 min-h-0 p-3 space-y-2">
-                {SAVED_ARCHITECTURES.map((arch) => (
-                  <ArchItem
-                    key={arch.id}
-                    arch={arch}
-                    isOpen={openArchId === arch.id}
-                    onToggle={() => toggleArch(arch.id)}
-                    onLoad={handleLoad}
-                  />
-                ))}
+              <div className="px-3 py-4 text-center">
+                <span className="inline-block text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-md bg-card border border-subtle text-dim">
+                  Coming soon
+                </span>
+                <p className="text-[11px] text-dim/80 mt-2 leading-relaxed">
+                  Save &amp; reload named architecture snapshots.
+                </p>
               </div>
             )}
           </div>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import CanvasHeader from './CanvasHeader';
 import LeftSidebar from './LeftSidebar';
 import Canvas from './Canvas';
+import ShareModal from './ShareModal';
 import PropertiesPanel from '../UserPresence/PropertiesPanel';
 import type { NodeEntity, ConnectionEntity, PortDirection, ComponentPrimitive, ToolType, MultiplayerEvent  } from '../../types/whiteboard';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -31,6 +32,7 @@ interface HistoryEntry {
 export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
   const [activeTool, setActiveTool] = useState<ToolType>('select');
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [nodes, setNodes] = useState<NodeEntity[]>([]);
   const [connections, setConnections] = useState<ConnectionEntity[]>([]);
 
@@ -49,6 +51,8 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
   const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) ?? null : null;
   const selectedConnection = selectedEdgeId ? connections.find((c) => c.id === selectedEdgeId) ?? null : null;
 
+
+
   function handleSelectNode(nodeId: string | null) {
     setSelectedNodeId(nodeId || null);
     if (nodeId) {
@@ -64,6 +68,18 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
   }
 
   function handleUpdateNode(nodeId: string, updates: Partial<NodeEntity>) {
+    const currentNode = nodes.find((n) => n.id === nodeId);
+    if (currentNode) {
+      const prevValues: Partial<NodeEntity> = {};
+      (Object.keys(updates) as (keyof NodeEntity)[]).forEach((key) => {
+        (prevValues as Record<string, unknown>)[key] = currentNode[key];
+      });
+      pushHistory({
+        undo: [{ type: 'node_updated', nodeId, updates: prevValues }],
+        redo: [{ type: 'node_updated', nodeId, updates }],
+      });
+    }
+
     setNodes((prev) => prev.map((n) => (n.id === nodeId ? { ...n, ...updates } : n)));
 
     broadcastEvent({type: 'node_updated', nodeId, updates})
@@ -71,6 +87,18 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
   }
 
   function handleUpdateConnection(edgeId: string, updates: Partial<ConnectionEntity>) {
+    const currentConn = connections.find((c) => c.id === edgeId);
+    if (currentConn) {
+      const prevValues: Partial<ConnectionEntity> = {};
+      (Object.keys(updates) as (keyof ConnectionEntity)[]).forEach((key) => {
+        (prevValues as Record<string, unknown>)[key] = currentConn[key];
+      });
+      pushHistory({
+        undo: [{ type: 'edge_updated', edgeId, updates: prevValues }],
+        redo: [{ type: 'edge_updated', edgeId, updates }],
+      });
+    }
+
     setConnections((prev) => prev.map((c) => (c.id === edgeId ? { ...c, ...updates } : c)));
 
     broadcastEvent({type: 'edge_updated', edgeId, updates})
@@ -79,6 +107,11 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
 
   // Delete Node and its connections
   function handleDeleteNode(nodeId: string) {
+    const deletedNode = nodes.find((n) => n.id === nodeId);
+    const attachedEdges = connections.filter(
+      (c) => c.fromNodeId === nodeId || c.toNodeId === nodeId
+    );
+
     setNodes((prev) => prev.filter((n) => n.id !== nodeId));
     setConnections((prev) =>
       prev.filter((c) => c.fromNodeId !== nodeId && c.toNodeId !== nodeId)
@@ -88,15 +121,34 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
     }
 
     broadcastEvent({type: 'node_deleted', nodeId: nodeId})
+
+    if (deletedNode) {
+      pushHistory({
+        undo: [
+          { type: 'nodes_added', nodes: [deletedNode] },
+          ...attachedEdges.map((c) => ({ type: 'edge_added' as const, connection: c })),
+        ],
+        redo: [{ type: 'node_deleted', nodeId }],
+      });
+    }
   }
 
   function handleDeleteConnection(edgeId: string) {
+    const deletedConn = connections.find((c) => c.id === edgeId);
+
     setConnections((prev) => prev.filter((c) => c.id !== edgeId));
     if (selectedEdgeId === edgeId) {
       setSelectedEdgeId(null);
     }
 
     broadcastEvent({type: 'edge_deleted', edgeId: edgeId})
+
+    if (deletedConn) {
+      pushHistory({
+        undo: [{ type: 'edge_added', connection: deletedConn }],
+        redo: [{ type: 'edge_deleted', edgeId }],
+      });
+    }
   }
 
   // Duplicate Node with next Roman numeral and offset position
@@ -136,11 +188,21 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
     setSelectedEdgeId(null);
 
     broadcastEvent({type: 'nodes_added', nodes: [newNode] })
+
+    pushHistory({
+      undo: [{ type: 'node_deleted', nodeId: newNode.id }],
+      redo: [{ type: 'nodes_added', nodes: [newNode] }],
+    });
   }
 
   // Keyboard Event Listener: Delete & Duplicate (Ctrl+D / Cmd+D)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
+
       // 1. ALWAYS prevent browser bookmarking on Ctrl+D / Cmd+D in whiteboard
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
         e.preventDefault();
@@ -152,19 +214,32 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
 
       // 2. Delete selected node or edge on Delete / Backspace
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
         if (selectedNodeId) {
           handleDeleteNode(selectedNodeId);
         } else if (selectedEdgeId) {
           handleDeleteConnection(selectedEdgeId);
         }
       }
+
+
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        handleUndo()
+        return;
+      }
+
+
+      if ((e.ctrlKey || e.metaKey)  && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+                handleRedo()
+
+        return;
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodeId, selectedEdgeId, nodes]);
+  }, [selectedNodeId, selectedEdgeId, nodes, connections]);
 
   const handleSelectPrimitive = (primitives: ComponentPrimitive[]) => {
     const counts: Record<string, number> = {};
@@ -198,63 +273,99 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
     setNodes((prev) => [...prev, ...newNodes]);
     broadcastEvent({ type: 'nodes_added', nodes: newNodes });
 
-undoStackRef.current.push({
-  undo: newNodes.map((n) => ({type: "node_deleted", nodeId: n.id})),
-  redo: [{type: 'nodes_added', nodes: newNodes}]
-})
+    pushHistory({
+      undo: newNodes.map((n) => ({type: "node_deleted", nodeId: n.id})),
+      redo: [{type: 'nodes_added', nodes: newNodes}]
+    })
 
-redoStackRef.current = [];
 
   };
 
-  const handleUndo = () => {
-    // console.log(undoStackRef.current)
-    console.log('Undo triggered');
 
+  function pushHistory(entry: HistoryEntry) {
+    undoStackRef.current.push(entry)
+    redoStackRef.current = [];
+  }
+
+  function applyHistoryEvent(event: MultiplayerEvent) {
+                    switch(event.type) {
+
+                    case 'nodes_added':
+                        setNodes((prev) => [...prev, ...event.nodes])
+                    break;
+
+                    case 'node_moved':
+                        setNodes((prevNodes) =>
+                            prevNodes.map((prevNode) => (
+                            prevNode.id === event.id ? {...prevNode, x: event.x, y: event.y} : prevNode
+                            )))
+                        break;
+
+                    case 'node_deleted':
+                        setNodes((prevNodes) => 
+                            prevNodes.filter((n) => 
+                            n.id !== event.nodeId
+                        )
+                        )
+
+                        setConnections((prevConnections) => 
+                            prevConnections.filter((c) => 
+                                c.fromNodeId !== event.nodeId && c.toNodeId !== event.nodeId
+                            )
+                        )
+                        break;
+
+                    case 'edge_added':
+                        setConnections((prevConnections) => [...prevConnections, event.connection])
+                        break;
+
+                    case 'edge_deleted':
+                        setConnections((prevConnections) => 
+                            prevConnections.filter((c) => 
+                                c.id !== event.edgeId
+                            )
+                        )
+                        break;
+
+                        case('node_updated'):
+                            setNodes((prevNodes) =>
+                                prevNodes.map((prevNode) => (
+                                    prevNode.id === event.nodeId ? {...prevNode, ...event.updates} : prevNode
+                            )))
+                        break;
+
+                        case('edge_updated'):
+                            setConnections((prevConnections) =>
+                                prevConnections.map((prevConnection) => (
+                                    prevConnection.id === event.edgeId ? {...prevConnection, ...event.updates} : prevConnection
+                            )))
+                        break;
+            }
+
+    broadcastEvent(event)
+
+  }
+
+  const handleUndo = () => {
     let popoff = undoStackRef.current.pop()
-    console.log(popoff)
 
     if(!popoff) return;
     redoStackRef.current.push(popoff)
 
-    console.log('Undo List:', undoStackRef.current);
-    console.log('Redo List:', redoStackRef.current);
-
     popoff.undo.forEach((event) => {
-      if(event.type === 'node_deleted') {
-        setNodes((prev) => prev.filter((n) => n.id !== event.nodeId));
-        
-      } 
-
-    broadcastEvent(event)
-    
+      applyHistoryEvent(event)
     })
-
-    // undoStackRef.current.pop()
   };
 
   const handleRedo = () => {
-    console.log('Redo triggered');
-
-      let popoff = redoStackRef.current.pop()
-    console.log(popoff)
+    let popoff = redoStackRef.current.pop()
 
     if(!popoff) return;
     undoStackRef.current.push(popoff)
 
-    console.log('Undo List:', undoStackRef.current);
-    console.log('Redo List:', redoStackRef.current);
-
-        popoff.redo.forEach((event) => {
-      if(event.type === 'nodes_added') {
-        setNodes((prev) => [...prev, ...event.nodes]);
-        
-      } 
-
-    broadcastEvent(event)
-    
+    popoff.redo.forEach((event) => {
+      applyHistoryEvent(event)
     })
-
   };
 
   const handleExport = () => {
@@ -262,8 +373,7 @@ redoStackRef.current = [];
   };
 
   const handleShare = () => {
-    navigator.clipboard?.writeText(window.location.href);
-    alert('Room link copied to clipboard!');
+    setIsShareModalOpen(true);
   };
 
 
@@ -271,13 +381,42 @@ function filterAndGroupComponents(items: ComponentPrimitive[], query: string) {
 
 }
 
+const lastMoveref = useRef<{id: string; time: number} | null>(null)
+
 function handleUpdateNodePosition(id: string, newX: number, newY: number) {
+
+  const oldNode = nodes.find((n) => n.id === id);
+
+     if (oldNode && (oldNode.x !== newX || oldNode.y !== newY)) {
+      const now = Date.now();
+      
+      if (
+        lastMoveref.current &&
+        lastMoveref.current.id === id &&
+        now - lastMoveref.current.time < 400
+      ) {
+        const lastEntry = undoStackRef.current.pop();
+        if (lastEntry) {
+          pushHistory({
+            undo: lastEntry.undo,
+            redo: [{ type: 'node_moved', id, x: newX, y: newY }],
+          });
+        }
+      } else {
+        pushHistory({
+          undo: [{ type: 'node_moved', id, x: oldNode.x, y: oldNode.y }],
+          redo: [{ type: 'node_moved', id, x: newX, y: newY }],
+        });
+      }
+      lastMoveref.current = { id, time: now };
+    }
 
   setNodes((prevNodes) => 
   prevNodes.map((prevNode) => (
     prevNode.id === id ? {...prevNode, x: newX, y: newY  } : prevNode)))
 
     broadcastEvent({type: 'node_moved', id: id, x:newX, y: newY})
+
 }
 
   // Creates a permanent connection between two card ports
@@ -298,6 +437,10 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
 
     broadcastEvent({type: 'edge_added', connection: newConnection })
 
+    pushHistory({
+      undo: [{ type: 'edge_deleted', edgeId: newConnection.id }],
+      redo: [{ type: 'edge_added', connection: newConnection }],
+    });
   };
 
 
@@ -369,6 +512,14 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
           onDeleteNode={handleDeleteNode}
           onDeleteConnection={handleDeleteConnection}
         />
+
+        {isShareModalOpen && (
+          <ShareModal
+            roomId={roomId}
+            peers={[currentUser, ...Object.values(peers)]}
+            onClose={() => setIsShareModalOpen(false)}
+          />
+        )}
       </div>
     </div>
     </div>
