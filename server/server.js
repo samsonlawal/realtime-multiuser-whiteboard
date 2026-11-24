@@ -79,6 +79,12 @@ function cancelSave(room, key) {
 // Turn web-socket on when any user joins
 // socket: one specific device, user or connection (on, send, w)
 wss.on('connection', async (socket, request) => {
+
+    socket.isAlive = true;
+    socket.on('pong', () => {so 
+        socket.isAlive = true;
+    });
+    
     const parsedUrl = new URL(request.url, 'http://localhost:8080');
     const roomId = parsedUrl.searchParams.get('room');
     const userId = parsedUrl.searchParams.get('userId') || 'anon';
@@ -188,6 +194,10 @@ wss.on('connection', async (socket, request) => {
 
     });
 
+    socket.on('ping', () => {
+
+    })
+
 // controls what happens when user leaves/socket closes
     socket.on('close', () => {
     room.clients.delete(socket);
@@ -214,6 +224,23 @@ wss.on('connection', async (socket, request) => {
     }
     });
 
+});
+
+const heartbeatInterval = setInterval(() => {
+
+    for (const socket of wss.clients) {
+          if (socket.isAlive === false) {
+            socket.terminate();
+            continue;
+        }
+        socket.isAlive = false;
+        socket.ping();
+    
+    }
+}, 30000)
+
+wss.on('close', () => {
+    clearInterval(heartbeatInterval);
 });
 
 const PORT = process.env.PORT || 8080;
