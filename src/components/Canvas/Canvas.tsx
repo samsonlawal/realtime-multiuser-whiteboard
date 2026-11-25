@@ -48,6 +48,8 @@ interface CanvasProps {
   onDuplicateNode?: (nodeId: string) => void;
   onCursorMove?: (x: number, y: number) => void;
   peers?: Record<string, RemotePeer>;
+  showGrid?: boolean;
+  showCursors?: boolean;
 }
 
 export default function Canvas({
@@ -65,6 +67,8 @@ export default function Canvas({
   onDuplicateNode = () => {},
   onCursorMove = () => {},
   peers = {},
+  showGrid = true,
+  showCursors = true,
 }: CanvasProps) {
 
 
@@ -214,29 +218,31 @@ cameraRef.current = { zoom, pan };
   const fineOpacity = zoom < 60 ? 0 : Math.min(1, (zoom - 60) / 40) * 0.035;
   const coarseOpacity = Math.max(0.03, Math.min(0.07, zoom / 1500 + 0.03));
 
-  const gridStyle = {
-    backgroundPosition: `${pan.x}px ${pan.y}px`,
-    backgroundImage: [
-      fineOpacity > 0
-        ? `linear-gradient(to right, rgba(255,255,255,${fineOpacity}) 1px, transparent 1px)`
-        : null,
-      fineOpacity > 0
-        ? `linear-gradient(to bottom, rgba(255,255,255,${fineOpacity}) 1px, transparent 1px)`
-        : null,
-      `linear-gradient(to right, rgba(255,255,255,${coarseOpacity}) 1px, transparent 1px)`,
-      `linear-gradient(to bottom, rgba(255,255,255,${coarseOpacity}) 1px, transparent 1px)`,
-    ]
-      .filter(Boolean)
-      .join(', '),
-    backgroundSize: [
-      fineOpacity > 0 ? `${fineCell * scale}px ${fineCell * scale}px` : null,
-      fineOpacity > 0 ? `${fineCell * scale}px ${fineCell * scale}px` : null,
-      `${coarseCell * scale}px ${coarseCell * scale}px`,
-      `${coarseCell * scale}px ${coarseCell * scale}px`,
-    ]
-      .filter(Boolean)
-      .join(', '),
-  };
+  const gridStyle = showGrid
+    ? {
+        backgroundPosition: `${pan.x}px ${pan.y}px`,
+        backgroundImage: [
+          fineOpacity > 0
+            ? `linear-gradient(to right, rgba(var(--grid-rgb), ${fineOpacity}) 1px, transparent 1px)`
+            : null,
+          fineOpacity > 0
+            ? `linear-gradient(to bottom, rgba(var(--grid-rgb), ${fineOpacity}) 1px, transparent 1px)`
+            : null,
+          `linear-gradient(to right, rgba(var(--grid-rgb), ${coarseOpacity}) 1px, transparent 1px)`,
+          `linear-gradient(to bottom, rgba(var(--grid-rgb), ${coarseOpacity}) 1px, transparent 1px)`,
+        ]
+          .filter(Boolean)
+          .join(', '),
+        backgroundSize: [
+          fineOpacity > 0 ? `${fineCell * scale}px ${fineCell * scale}px` : null,
+          fineOpacity > 0 ? `${fineCell * scale}px ${fineCell * scale}px` : null,
+          `${coarseCell * scale}px ${coarseCell * scale}px`,
+          `${coarseCell * scale}px ${coarseCell * scale}px`,
+        ]
+          .filter(Boolean)
+          .join(', '),
+      }
+    : undefined;
 
   const handlePointerDown = (e: React.PointerEvent) => {
     // If draft wire is active and user clicks empty canvas space, cancel it
@@ -404,17 +410,18 @@ cameraRef.current = { zoom, pan };
           />
         ))}
 
-        {Object.values(peers).map((peer) =>
-          peer.cursor ? (
-            <Cursor
-              key={peer.userId}
-              name={peer.name || peer.userId}
-              x={peer.cursor.x}
-              y={peer.cursor.y}
-              fillHex={peer.color}
-            />
-          ) : null
-        )}
+        {showCursors &&
+          Object.values(peers).map((peer) =>
+            peer.cursor ? (
+              <Cursor
+                key={peer.userId}
+                name={peer.name || peer.userId}
+                x={peer.cursor.x}
+                y={peer.cursor.y}
+                fillHex={peer.color}
+              />
+            ) : null
+          )}
 
       </div>
 

@@ -53,11 +53,17 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
 
     useEffect(() => {
         if (!roomId) return;
+        let isUnmounted = false;
+        let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
         const wsBaseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
+       
+        
+        function connect() {
+
         const socket = new WebSocket(`${wsBaseUrl}?room=${roomId}&userId=${myUserId}`);
         socketRef.current = socket;
-        
+
         // listend to the onConnetion from the server
         socket.onopen = () => {
             console.log(`[Multiplayer] Connected to room: ${roomId}`);
@@ -159,11 +165,20 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
         socket.onclose = () => {
             console.log('[Multiplayer] Disconnected from server');
             setIsConnected(false);
-        };
+            if(!isUnmounted) {
+                reconnectTimer = setTimeout(connect, 2000);
+            }
+            
+        }}
+
+        connect()
+
 
         return () => {
-            socket.close();
-            socketRef.current = null;
+            isUnmounted = true
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            socketRef.current?.close();
+        socketRef.current = null;
         };
     }, [roomId]);
 
