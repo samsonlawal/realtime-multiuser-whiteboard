@@ -38,7 +38,8 @@
 
 
   /* Fonts */
-  --font-poppins: "Poppins", sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-poppins: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   --font-display: "Red Hat Display", sans-serif;
   --font-red-hat: "Red Hat Display", sans-serif;
   --font-montserrat: "Montserrat", sans-serif;
@@ -75,7 +76,8 @@ body {
   padding: 0;
   background-color: var(--color-canvas);
   color: var(--color-heading);
-  font-family: var(--font-poppins), 'Poppins', sans-serif;
+  font-family: var(--font-sans), 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 
