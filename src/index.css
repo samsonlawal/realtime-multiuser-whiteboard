@@ -49,6 +49,26 @@
 
 }
 
+:root {
+  --grid-rgb: 255, 255, 255;
+}
+
+[data-theme="light"] {
+  --color-canvas: #f8fafc;
+  --color-panel: #ffffff;
+  --color-card: #f1f5f9;
+  --color-card-hover: #e2e8f0;
+
+  --color-subtle: #e2e8f0;
+  --color-subtle-hover: #cbd5e1;
+
+  --color-heading: #0f172a;
+  --color-muted: #475569;
+  --color-dim: #64748b;
+
+  --grid-rgb: 15, 23, 42;
+}
+
 /* Global resets */
 body {
   margin: 0;

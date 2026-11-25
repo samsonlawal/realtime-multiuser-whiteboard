@@ -81,7 +81,7 @@ function cancelSave(room, key) {
 wss.on('connection', async (socket, request) => {
 
     socket.isAlive = true;
-    socket.on('pong', () => {so 
+    socket.on('pong', () => {
         socket.isAlive = true;
     });
     

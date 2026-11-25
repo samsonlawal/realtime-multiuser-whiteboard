@@ -176,8 +176,8 @@ export function useMultiplayer(roomId: string | undefined, setNodes: React.Dispa
 
         return () => {
             isUnmounted = true
-
-        socketRef.current?.close();
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            socketRef.current?.close();
         socketRef.current = null;
         };
     }, [roomId]);

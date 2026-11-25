@@ -3,6 +3,8 @@ import CanvasHeader from './CanvasHeader';
 import LeftSidebar from './LeftSidebar';
 import Canvas from './Canvas';
 import ShareModal from './ShareModal';
+import ExportModal from './ExportModal';
+import SettingsModal from './SettingsModal';
 import PropertiesPanel from '../UserPresence/PropertiesPanel';
 import type { NodeEntity, ConnectionEntity, PortDirection, ComponentPrimitive, ToolType, MultiplayerEvent  } from '../../types/whiteboard';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -33,6 +35,19 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
   const [activeTool, setActiveTool] = useState<ToolType>('select');
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() =>
+    localStorage.getItem('reeley_theme') === 'light' ? 'light' : 'dark'
+  );
+  const [showGrid, setShowGrid] = useState(true);
+  const [snapToGrid, setSnapToGrid] = useState(false);
+  const [showCursors, setShowCursors] = useState(true);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('reeley_theme', theme);
+  }, [theme]);
   const [nodes, setNodes] = useState<NodeEntity[]>([]);
   const [connections, setConnections] = useState<ConnectionEntity[]>([]);
 
@@ -369,7 +384,26 @@ export default function WhiteboardView({ onBackToHome }: WhiteboardViewProps) {
   };
 
   const handleExport = () => {
-    alert('Export diagram feature coming in Milestone 3!');
+    setIsExportModalOpen(true);
+  };
+
+  const handleExportJson = () => {
+    const payload = { roomId, exportedAt: new Date().toISOString(), nodes, connections };
+    const blob = new Blob(
+      [JSON.stringify(payload, null, 2)],
+      { type: "application/json",}
+    )
+
+    const downloadURL = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = downloadURL;
+    a.download = `${roomId || 'architecture'}.json`;
+    a.click();
+    URL.revokeObjectURL(downloadURL);
+
+    
+
+
   };
 
   const handleShare = () => {
@@ -384,10 +418,12 @@ function filterAndGroupComponents(items: ComponentPrimitive[], query: string) {
 const lastMoveref = useRef<{id: string; time: number} | null>(null)
 
 function handleUpdateNodePosition(id: string, newX: number, newY: number) {
+  const finalX = snapToGrid ? Math.round(newX / 25) * 25 : newX;
+  const finalY = snapToGrid ? Math.round(newY / 25) * 25 : newY;
 
   const oldNode = nodes.find((n) => n.id === id);
 
-     if (oldNode && (oldNode.x !== newX || oldNode.y !== newY)) {
+     if (oldNode && (oldNode.x !== finalX || oldNode.y !== finalY)) {
       const now = Date.now();
       
       if (
@@ -399,13 +435,13 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
         if (lastEntry) {
           pushHistory({
             undo: lastEntry.undo,
-            redo: [{ type: 'node_moved', id, x: newX, y: newY }],
+            redo: [{ type: 'node_moved', id, x: finalX, y: finalY }],
           });
         }
       } else {
         pushHistory({
           undo: [{ type: 'node_moved', id, x: oldNode.x, y: oldNode.y }],
-          redo: [{ type: 'node_moved', id, x: newX, y: newY }],
+          redo: [{ type: 'node_moved', id, x: finalX, y: finalY }],
         });
       }
       lastMoveref.current = { id, time: now };
@@ -413,9 +449,9 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
 
   setNodes((prevNodes) => 
   prevNodes.map((prevNode) => (
-    prevNode.id === id ? {...prevNode, x: newX, y: newY  } : prevNode)))
+    prevNode.id === id ? {...prevNode, x: finalX, y: finalY  } : prevNode)))
 
-    broadcastEvent({type: 'node_moved', id: id, x:newX, y: newY})
+    broadcastEvent({type: 'node_moved', id: id, x: finalX, y: finalY})
 
 }
 
@@ -466,6 +502,7 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
         onRedo={handleRedo}
         onExport={handleExport}
         onShare={handleShare}
+        onOpenSettings={() => setIsSettingsModalOpen(true)}
         roomId={roomId}
       />
 
@@ -500,6 +537,8 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
           onDuplicateNode={handleDuplicateNode}
           onCursorMove={broadcastCursor}
           peers={peers}
+          showGrid={showGrid}
+          showCursors={showCursors}
         />
 
         {/* Right Floating Inspector (Properties & Styling + QuickKeysToggle) */}
@@ -518,6 +557,31 @@ function handleUpdateNodePosition(id: string, newX: number, newY: number) {
             roomId={roomId}
             peers={[currentUser, ...Object.values(peers)]}
             onClose={() => setIsShareModalOpen(false)}
+          />
+        )}
+
+        {isExportModalOpen && (
+          <ExportModal
+            roomId={roomId}
+            nodeCount={nodes.length}
+            connectionCount={connections.length}
+            onExportJson={handleExportJson}
+            onClose={() => setIsExportModalOpen(false)}
+          />
+        )}
+
+        {isSettingsModalOpen && (
+          <SettingsModal
+            theme={theme}
+            onChangeTheme={setTheme}
+            showGrid={showGrid}
+            onToggleGrid={() => setShowGrid((prev) => !prev)}
+            snapToGrid={snapToGrid}
+            onToggleSnapToGrid={() => setSnapToGrid((prev) => !prev)}
+            showCursors={showCursors}
+            onToggleCursors={() => setShowCursors((prev) => !prev)}
+            roomId={roomId}
+            onClose={() => setIsSettingsModalOpen(false)}
           />
         )}
       </div>

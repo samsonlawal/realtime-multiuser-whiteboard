@@ -90,10 +90,10 @@ export default function ShareModal({ roomId = 'default-room', peers = [], onClos
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className={`h-9 px-2.5 rounded-lg border text-xs font-normal flex items-center gap-1.5 cursor-pointer transition-all shrink-0 ${
+                className={`h-9 px-3 rounded-lg border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all shrink-0 shadow-sm ${
                   copied
                     ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
-                    : 'bg-card hover:bg-card-hover border-subtle text-heading'
+                    : 'bg-brand hover:bg-brand-hover border-transparent text-white'
                 }`}
               >
                 {copied ? (
@@ -251,10 +251,10 @@ export default function ShareModal({ roomId = 'default-room', peers = [], onClos
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className={`h-9 px-2.5 rounded-lg border text-xs font-normal flex items-center gap-1.5 cursor-pointer transition-all shrink-0 ${
+                className={`h-9 px-3 rounded-lg border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all shrink-0 shadow-sm ${
                   copied
                     ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
-                    : 'bg-card hover:bg-card-hover border-subtle text-heading'
+                    : 'bg-brand hover:bg-brand-hover border-transparent text-white'
                 }`}
               >
                 {copied ? (
