@@ -435,25 +435,48 @@ cameraRef.current = { zoom, pan };
         className="absolute inset-0 block pointer-events-none"
       />
 
-      {/* Center welcome guide */}
+      {/* Center empty-canvas guide & Import JSON */}
       {nodes.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="p-5 rounded-2xl bg-panel/80 border border-subtle backdrop-blur-md text-center max-w-sm shadow-2xl">
-          <div className="w-10 h-10 mx-auto mb-2.5 rounded-full bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2v20M2 12h20" />
-            </svg>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="pointer-events-auto p-5 rounded-2xl bg-panel/85 border border-subtle backdrop-blur-md text-center max-w-sm shadow-2xl space-y-3"
+          >
+            <div className="w-10 h-10 mx-auto rounded-full bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-heading text-sm">
+                Start or Import Architecture
+              </h3>
+              <p className="text-xs text-muted mt-1 leading-relaxed">
+                Import a saved <span className="font-mono text-heading/80">.json</span> diagram, or add components from the left sidebar.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-brand/15 border border-brand/30 text-brand text-xs font-medium opacity-75 cursor-not-allowed"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              Import JSON
+              <span className="text-[9.5px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-panel border border-subtle text-dim">
+                Soon
+              </span>
+            </button>
+            <div className="text-dim text-[10.5px]">
+              Ctrl + scroll to zoom · Space + drag to pan
+            </div>
           </div>
-          <h3 className="font-display font-semibold text-heading text-sm">
-            Infinite Workspace
-          </h3>
-          <p className="text-xs text-muted mt-1 leading-relaxed">
-            Add a component from the left sidebar, or pick a shape from the toolbar below.
-            <br />
-            <span className="text-dim text-[10px]">Ctrl + scroll to zoom</span>
-          </p>
         </div>
-      </div>
       )}
 
       {/* Floating toolbar */}
